@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id          String           @id @default(cuid())
+  name        String?
+  email       String?          @unique
+  games       Game[]
+  teams       Team[]
+  snapshots   ExportSnapshot[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Team {
+  id        String     @id @default(cuid())
+  userId    String?
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name      String
+  shortName String?
+  players   Player[]
+  gameTeams GameTeam[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([name])
+}
+
+model Player {
+  id             String            @id @default(cuid())
+  teamId         String?
+  team           Team?             @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  name           String
+  number         String?
+  throws         String?
+  bats           String?
+  primaryPos     String?
+  lineupEntries  LineupEntry[]
+  battingRecords PlateAppearance[] @relation("Batter")
+  pitchingRecords PlateAppearance[] @relation("Pitcher")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([name])
+}
+
+model Game {
+  id               String            @id @default(cuid())
+  userId           String?
+  user             User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  mode             String
+  gameDate         DateTime
+  venue            String?
+  competition      String?
+  homeTeamName     String
+  awayTeamName     String
+  favoriteTeamName String?
+  weather          String?
+  seatMemo         String?
+  watchMemo        String?
+  impressivePlayer String?
+  mvp              String?
+  result           String?
+  photoMemo        String?
+  isPublic         Boolean           @default(false)
+  umpireMemo       String?
+  status           String            @default("NORMAL")
+  statusReason     String?
+  calledReason     String?
+  startTime        DateTime?
+  endTime          DateTime?
+  gameTeams        GameTeam[]
+  lineups          LineupEntry[]
+  inningScores     InningScore[]
+  plateAppearances PlateAppearance[]
+  gameNotes        GameNote[]
+  snapshots        ExportSnapshot[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([gameDate])
+  @@index([mode])
+  @@index([status])
+}
+
+model GameTeam {
+  id              String   @id @default(cuid())
+  gameId          String
+  teamId          String?
+  game            Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  team            Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  side            String
+  teamName        String
+  startingPitcher String?
+  relayMemo       String?
+  scoringMemo     String?
+  winningPitcher  String?
+  losingPitcher   String?
+  savePitcher     String?
+  homerunMemo     String?
+
+  @@index([gameId])
+  @@index([teamName])
+}
+
+model LineupEntry {
+  id           String   @id @default(cuid())
+  gameId       String
+  playerId     String?
+  game         Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  player       Player?  @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  teamSide     String
+  battingOrder Int?
+  playerName   String
+  position     String?
+  number       String?
+  role         String   @default("STARTER")
+  substitution String?
+
+  @@index([gameId, teamSide, battingOrder])
+}
+
+model InningScore {
+  id        String @id @default(cuid())
+  gameId    String
+  game      Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  inning    Int
+  topRuns   Int    @default(0)
+  bottomRuns Int   @default(0)
+
+  @@unique([gameId, inning])
+}
+
+model PlateAppearance {
+  id              String        @id @default(cuid())
+  gameId          String
+  game            Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  inning          Int
+  topBottom       String
+  battingOrder    Int
+  batterId        String?
+  batter          Player?       @relation("Batter", fields: [batterId], references: [id], onDelete: SetNull)
+  pitcherId       String?
+  pitcher         Player?       @relation("Pitcher", fields: [pitcherId], references: [id], onDelete: SetNull)
+  batterName      String?
+  pitcherName     String?
+  balls           Int           @default(0)
+  strikes         Int           @default(0)
+  outsBefore      Int           @default(0)
+  outsAfter       Int           @default(0)
+  result          String
+  rbi             Int           @default(0)
+  runScored       Boolean       @default(false)
+  baseStateBefore String?
+  baseStateAfter  String?
+  hitType         String?
+  hitDirection    String?
+  battedBallType  String?
+  memo            String?
+  pitchEvents     PitchEvent[]
+  runnerEvents    RunnerEvent[]
+  createdAt       DateTime      @default(now())
+
+  @@index([gameId, inning, topBottom])
+  @@index([batterId])
+  @@index([pitcherId])
+}
+
+model PitchEvent {
+  id                  String           @id @default(cuid())
+  plateAppearanceId   String
+  plateAppearance     PlateAppearance  @relation(fields: [plateAppearanceId], references: [id], onDelete: Cascade)
+  pitchNumber         Int
+  pitchCall           String
+  speedKmh            Int?
+  pitchType           String?
+  course              String?
+  memo                String?
+
+  @@unique([plateAppearanceId, pitchNumber])
+}
+
+model RunnerEvent {
+  id                String          @id @default(cuid())
+  plateAppearanceId String
+  plateAppearance   PlateAppearance @relation(fields: [plateAppearanceId], references: [id], onDelete: Cascade)
+  runnerName        String?
+  fromBase          String?
+  toBase            String?
+  outcome           String
+  rbiCredit         Boolean         @default(false)
+  memo              String?
+}
+
+model GameNote {
+  id        String   @id @default(cuid())
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  noteType  String
+  body      String
+  createdAt DateTime @default(now())
+}
+
+model ExportSnapshot {
+  id        String   @id @default(cuid())
+  userId    String?
+  gameId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  game      Game?    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  type      String
+  style     String?
+  imageUrl  String?
+  dataJson  String?
+  createdAt DateTime @default(now())
+
+  @@index([type])
+}
