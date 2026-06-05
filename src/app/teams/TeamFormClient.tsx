@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageShell } from "@/components/PageShell";
+import { loadCurrentUser } from "@/lib/auth/clientAuth";
 import { loadTeam, TeamCategory, upsertTeam } from "@/lib/masterStorage";
+import { ensureTeamOwner } from "@/lib/teamAccessStorage";
 
 const field = "min-h-11 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100";
 
@@ -25,6 +27,7 @@ export function TeamFormClient({ id }: { id?: string }) {
       return;
     }
     const team = upsertTeam({ id, ...form, name: form.name.trim(), createdAt: id ? loadTeam(id)?.createdAt : undefined });
+    ensureTeamOwner(team.id, loadCurrentUser());
     router.push(`/teams/${team.id}`);
   }
 

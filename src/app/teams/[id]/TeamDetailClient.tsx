@@ -28,6 +28,8 @@ export function TeamDetailClient({ id }: { id: string }) {
           <div className="mt-4 flex flex-wrap gap-2">
             <Link className="rounded-md bg-stone-900 px-4 py-3 text-sm font-bold text-white" href={`/teams/${id}/edit`}>編集</Link>
             <Link className="rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white" href={`/players/new?teamId=${id}`}>選手追加</Link>
+            <Link className="rounded-md bg-stone-100 px-4 py-3 text-sm font-bold text-stone-800" href={`/teams/${id}/members`}>メンバー</Link>
+            <Link className="rounded-md bg-stone-100 px-4 py-3 text-sm font-bold text-stone-800" href={`/teams/${id}/invitations`}>招待</Link>
             <Link className="rounded-md bg-amber-600 px-4 py-3 text-sm font-bold text-white" href="/stats/teams">チーム成績</Link>
           </div>
         </section>
