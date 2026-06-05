@@ -10,9 +10,12 @@ datasource db {
 model User {
   id          String           @id @default(cuid())
   name        String?
+  displayName String?
   email       String?          @unique
   games       Game[]
   teams       Team[]
+  ownedTeams  Team[]           @relation("TeamOwner")
+  ownedGames  Game[]           @relation("GameOwner")
   snapshots   ExportSnapshot[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -21,15 +24,24 @@ model User {
 model Team {
   id        String     @id @default(cuid())
   userId    String?
+  ownerId   String?
   user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  owner     User?      @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   name      String
   shortName String?
+  category  String?
+  homeGround String?
+  primaryColor String?
+  memo      String?
   players   Player[]
   gameTeams GameTeam[]
+  homeGames Game[]     @relation("HomeTeam")
+  awayGames Game[]     @relation("AwayTeam")
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
   @@index([name])
+  @@index([category])
 }
 
 model Player {
@@ -37,10 +49,15 @@ model Player {
   teamId         String?
   team           Team?             @relation(fields: [teamId], references: [id], onDelete: SetNull)
   name           String
+  kana           String?
   number         String?
   throws         String?
   bats           String?
+  throwingHand   String?
+  battingSide    String?
   primaryPos     String?
+  primaryPosition String?
+  memo           String?
   lineupEntries  LineupEntry[]
   battingRecords PlateAppearance[] @relation("Batter")
   pitchingRecords PlateAppearance[] @relation("Pitcher")
@@ -53,11 +70,17 @@ model Player {
 model Game {
   id               String            @id @default(cuid())
   userId           String?
+  ownerId          String?
   user             User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  owner            User?             @relation("GameOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   mode             String
   gameDate         DateTime
   venue            String?
   competition      String?
+  homeTeamId       String?
+  awayTeamId       String?
+  homeTeam         Team?             @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: SetNull)
+  awayTeam         Team?             @relation("AwayTeam", fields: [awayTeamId], references: [id], onDelete: SetNull)
   homeTeamName     String
   awayTeamName     String
   favoriteTeamName String?
@@ -75,6 +98,8 @@ model Game {
   calledReason     String?
   startTime        DateTime?
   endTime          DateTime?
+  homeScore        Int?
+  awayScore        Int?
   gameTeams        GameTeam[]
   lineups          LineupEntry[]
   inningScores     InningScore[]
@@ -120,8 +145,11 @@ model LineupEntry {
   playerName   String
   position     String?
   number       String?
+  uniformNumber String?
   role         String   @default("STARTER")
+  isStarter    Boolean  @default(true)
   substitution String?
+  memo         String?
 
   @@index([gameId, teamSide, battingOrder])
 }
@@ -131,6 +159,11 @@ model InningScore {
   gameId    String
   game      Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
   inning    Int
+  topBottom String?
+  runs      Int?
+  hits      Int?
+  errors    Int?
+  leftOnBase Int?
   topRuns   Int    @default(0)
   bottomRuns Int   @default(0)
 
@@ -182,6 +215,7 @@ model PitchEvent {
   pitchType           String?
   course              String?
   memo                String?
+  createdAt           DateTime         @default(now())
 
   @@unique([plateAppearanceId, pitchNumber])
 }
@@ -202,9 +236,11 @@ model GameNote {
   id        String   @id @default(cuid())
   gameId    String
   game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  title     String?
   noteType  String
   body      String
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ExportSnapshot {
@@ -215,6 +251,7 @@ model ExportSnapshot {
   game      Game?    @relation(fields: [gameId], references: [id], onDelete: Cascade)
   type      String
   style     String?
+  fileName  String?
   imageUrl  String?
   dataJson  String?
   createdAt DateTime @default(now())

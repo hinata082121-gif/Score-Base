@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { deleteGame, loadGames } from "@/lib/storage";
+import { CsvDownloadButton } from "@/components/CsvButtons";
+import { exportGamesCsv } from "@/lib/repositories/csv";
+import { deleteGame, duplicateLocalGame, loadGames } from "@/lib/storage";
 import { modeLabels, statusLabels } from "@/lib/constants";
 import { scoreFor } from "@/lib/stats";
 
@@ -24,6 +27,7 @@ function inPeriod(dateText: string, period: string, start: string, end: string) 
 }
 
 export function GamesListClient() {
+  const router = useRouter();
   const [games, setGames] = useState(() => loadGames());
   const [period, setPeriod] = useState("all");
   const [start, setStart] = useState("");
@@ -49,6 +53,12 @@ export function GamesListClient() {
     setGames(loadGames());
   }
 
+  function duplicate(id: string) {
+    const copy = duplicateLocalGame(id);
+    setGames(loadGames());
+    if (copy) router.push(`/games/${copy.id}/edit`);
+  }
+
   return (
     <div className="space-y-4">
       <section className="grid gap-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-4">
@@ -57,6 +67,9 @@ export function GamesListClient() {
         <label className="text-sm font-bold text-stone-700">終了日<input className={`mt-1 min-h-11 w-full rounded-md border px-3 ${customDateError && !end ? "border-red-300 bg-red-50" : "border-stone-300"}`} type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
         <label className="text-sm font-bold text-stone-700">ソート<select className="mt-1 min-h-11 w-full rounded-md border border-stone-300 px-3" value={sort} onChange={(e) => setSort(e.target.value)}><option value="new">新しい順</option><option value="old">古い順</option><option value="venue">球場順</option><option value="team">チーム名順</option></select></label>
         {customDateError ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm font-bold text-red-700 sm:col-span-4">{customDateError}</p> : null}
+        <div className="sm:col-span-4">
+          <CsvDownloadButton filename={`score-base-games-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}.csv`} getCsv={() => exportGamesCsv(filtered)} label="観戦記録CSV" />
+        </div>
       </section>
 
       <section className="space-y-3">
@@ -74,6 +87,9 @@ export function GamesListClient() {
                 <div className="flex flex-wrap gap-2">
                   <Link className="rounded-md bg-emerald-700 px-3 py-2 text-sm font-bold text-white" href={`/games/${game.id}`}>詳細</Link>
                   <Link className="rounded-md bg-stone-100 px-3 py-2 text-sm font-bold text-stone-800" href={`/games/${game.id}/edit`}>編集</Link>
+                  <button className="rounded-md bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800" onClick={() => duplicate(game.id)}>複製</button>
+                  {game.mode === "SCOREBOOK" ? <Link className="rounded-md bg-stone-100 px-3 py-2 text-sm font-bold text-stone-800" href={`/games/${game.id}/scorebook`}>スコアブック</Link> : null}
+                  <Link className="rounded-md bg-stone-100 px-3 py-2 text-sm font-bold text-stone-800" href={`/games/${game.id}/export`}>PNG出力</Link>
                   <button className="rounded-md bg-red-50 px-3 py-2 text-sm font-bold text-red-700" onClick={() => remove(game.id)}>削除</button>
                 </div>
               </div>

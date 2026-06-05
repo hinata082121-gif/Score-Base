@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PageShell } from "@/components/PageShell";
 import { defaultSettings } from "@/lib/constants";
@@ -42,6 +43,11 @@ export function SettingsClient() {
         <section className="grid gap-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-2">
           <label className="text-sm font-bold text-stone-700">デフォルト出力形式<select className="mt-1 min-h-11 w-full rounded-md border border-stone-300 px-3" value={settings.defaultStyle} onChange={(e) => patch({ defaultStyle: e.target.value as ScoreBaseSettings["defaultStyle"] })}><option value="WASEDA">早稲田式</option><option value="KEIO">慶應式</option></select></label>
           <label className="text-sm font-bold text-stone-700">スコアブック表示密度<select className="mt-1 min-h-11 w-full rounded-md border border-stone-300 px-3" value={settings.density} onChange={(e) => patch({ density: e.target.value as ScoreBaseSettings["density"] })}><option value="STANDARD">標準</option><option value="COMPACT">コンパクト</option></select></label>
+        </section>
+        <section className="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-black text-stone-950">データ管理</h2>
+          <p className="mt-2 text-sm text-stone-600">localStorageのバックアップ、削除、DB移行準備を行います。</p>
+          <Link className="mt-3 inline-flex min-h-11 items-center rounded-md bg-stone-900 px-4 text-sm font-bold text-white" href="/settings/data">データ管理を開く</Link>
         </section>
       </div>
     </PageShell>

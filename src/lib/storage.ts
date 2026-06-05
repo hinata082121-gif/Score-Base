@@ -47,6 +47,29 @@ export function loadGame(id: string) {
   return loadGames().find((game) => game.id === id);
 }
 
+export function duplicateLocalGame(id: string) {
+  const original = loadGame(id);
+  if (!original) return undefined;
+  const now = new Date().toISOString();
+  const copy: ScoreBaseGame = {
+    ...original,
+    id: uid("game"),
+    gameDate: new Date().toISOString().slice(0, 10),
+    result: "",
+    inningScores: original.inningScores.map((inning) => ({ ...inning, top: "", bottom: "" })),
+    plateAppearances: [],
+    runnerState: { first: "", second: "", third: "" },
+    createdAt: now,
+    updatedAt: now,
+  };
+  upsertGame(copy);
+  return copy;
+}
+
+export function localGamesCount() {
+  return loadGames().length;
+}
+
 export function loadSettings(): ScoreBaseSettings {
   if (!isBrowser()) return defaultSettings;
   try {
