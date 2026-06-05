@@ -8,6 +8,62 @@ export type GameStatus =
   | "NO_GAME";
 export type TopBottom = "TOP" | "BOTTOM";
 export type ScorebookStyle = "WASEDA" | "KEIO";
+export type PitchCall =
+  | "BALL"
+  | "CALLED_STRIKE"
+  | "SWINGING_STRIKE"
+  | "FOUL"
+  | "BUNT_FOUL"
+  | "HIT_BY_PITCH"
+  | "INTENTIONAL_WALK"
+  | "WILD_PITCH"
+  | "PASSED_BALL"
+  | "BALK";
+export type PlateResult =
+  | "SINGLE"
+  | "DOUBLE"
+  | "TRIPLE"
+  | "HOME_RUN"
+  | "WALK"
+  | "HIT_BY_PITCH"
+  | "INTENTIONAL_WALK"
+  | "ERROR"
+  | "FIELDERS_CHOICE"
+  | "INTERFERENCE"
+  | "DROPPED_THIRD_STRIKE"
+  | "STRIKEOUT"
+  | "CALLED_STRIKEOUT"
+  | "SWINGING_STRIKEOUT"
+  | "GROUND_OUT"
+  | "FLY_OUT"
+  | "LINE_OUT"
+  | "FOUL_FLY_OUT"
+  | "BUNT_OUT"
+  | "DOUBLE_PLAY"
+  | "SAC_BUNT"
+  | "SAC_FLY"
+  | "STEAL"
+  | "CAUGHT_STEALING"
+  | "PICKOFF"
+  | "RUNNER_OUT"
+  | "OBSTRUCTION"
+  | "OTHER";
+export type BattedBallType = "GROUND" | "LINER" | "FLY" | "POP_FLY" | "BUNT" | "FOUL_FLY" | "NONE";
+export type HitDirection =
+  | "PITCHER"
+  | "CATCHER"
+  | "FIRST"
+  | "SECOND"
+  | "THIRD"
+  | "SHORT"
+  | "LEFT"
+  | "CENTER"
+  | "RIGHT"
+  | "LEFT_CENTER"
+  | "RIGHT_CENTER"
+  | "THIRD_SHORT"
+  | "FIRST_SECOND"
+  | "NONE";
 
 export type PlayerInput = {
   id: string;
@@ -28,7 +84,7 @@ export type InningScore = {
 export type PitchEvent = {
   id: string;
   pitchNumber: number;
-  pitchCall: string;
+  pitchCall: PitchCall | string;
   speedKmh?: number;
   pitchType?: string;
   course?: string;
@@ -46,16 +102,17 @@ export type PlateAppearance = {
   strikes: number;
   outsBefore: number;
   outsAfter: number;
-  result: string;
+  result: PlateResult | string;
   rbi: number;
   runScored: boolean;
   baseStateBefore: string;
   baseStateAfter: string;
   hitType?: string;
-  hitDirection?: string;
-  battedBallType?: string;
+  hitDirection?: HitDirection | string;
+  battedBallType?: BattedBallType | string;
   memo?: string;
   pitches: PitchEvent[];
+  createdAt?: string;
 };
 
 export type RunnerState = {

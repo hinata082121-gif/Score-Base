@@ -75,7 +75,7 @@ export function ExportClient({ id }: { id: string }) {
           <SaveImageButton targetId="team-stats-card" filename="score-base-team-stats.png" />
           <div id="team-stats-card" className={cardClass()}>
             <h2 className="text-2xl font-black text-stone-950">チーム成績カード</h2>
-            <table className="mt-4 w-full text-sm"><thead><tr><th className="p-2 text-left">チーム</th><th>試合</th><th>勝</th><th>敗</th><th>得点</th><th>本塁打</th><th>勝率</th><th>OPS</th></tr></thead><tbody>{teams.map((row) => <tr key={row.team}><th className="p-2 text-left">{row.team}</th><td className="text-center">{row.games}</td><td className="text-center">{row.wins}</td><td className="text-center">{row.losses}</td><td className="text-center">{row.runs}</td><td className="text-center">{row.hr}</td><td className="text-center">{row.winRate}</td><td className="text-center">{row.ops}</td></tr>)}</tbody></table>
+            <table className="mt-4 w-full text-sm"><thead><tr><th className="p-2 text-left">チーム</th><th>試合</th><th>勝</th><th>敗</th><th>得点</th><th>安打</th><th>本塁打</th><th>勝率</th><th>OPS</th></tr></thead><tbody>{teams.map((row) => <tr key={row.team}><th className="p-2 text-left">{row.team}</th><td className="text-center">{row.games}</td><td className="text-center">{row.wins}</td><td className="text-center">{row.losses}</td><td className="text-center">{row.runs}</td><td className="text-center">{row.hits}</td><td className="text-center">{row.hr}</td><td className="text-center">{row.winRate}</td><td className="text-center">{row.ops}</td></tr>)}</tbody></table>
           </div>
         </section>
       </div>

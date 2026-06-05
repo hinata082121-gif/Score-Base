@@ -29,8 +29,10 @@ export function GamesListClient() {
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [sort, setSort] = useState("new");
+  const customDateError = period === "custom" && (!start || !end) ? "カスタム期間では開始日と終了日を入力してください。" : "";
 
   const filtered = useMemo(() => {
+    if (period === "custom" && (!start || !end)) return [];
     const rows = games.filter((game) => inPeriod(game.gameDate, period, start, end));
     rows.sort((a, b) => {
       if (sort === "old") return a.gameDate.localeCompare(b.gameDate);
@@ -51,9 +53,10 @@ export function GamesListClient() {
     <div className="space-y-4">
       <section className="grid gap-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-4">
         <label className="text-sm font-bold text-stone-700">期間<select className="mt-1 min-h-11 w-full rounded-md border border-stone-300 px-3" value={period} onChange={(e) => setPeriod(e.target.value)}><option value="all">全期間</option><option value="today">今日</option><option value="week">今週</option><option value="month">今月</option><option value="year">今年</option><option value="custom">カスタム期間</option></select></label>
-        <label className="text-sm font-bold text-stone-700">開始日<input className="mt-1 min-h-11 w-full rounded-md border border-stone-300 px-3" type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
-        <label className="text-sm font-bold text-stone-700">終了日<input className="mt-1 min-h-11 w-full rounded-md border border-stone-300 px-3" type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
+        <label className="text-sm font-bold text-stone-700">開始日<input className={`mt-1 min-h-11 w-full rounded-md border px-3 ${customDateError && !start ? "border-red-300 bg-red-50" : "border-stone-300"}`} type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
+        <label className="text-sm font-bold text-stone-700">終了日<input className={`mt-1 min-h-11 w-full rounded-md border px-3 ${customDateError && !end ? "border-red-300 bg-red-50" : "border-stone-300"}`} type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
         <label className="text-sm font-bold text-stone-700">ソート<select className="mt-1 min-h-11 w-full rounded-md border border-stone-300 px-3" value={sort} onChange={(e) => setSort(e.target.value)}><option value="new">新しい順</option><option value="old">古い順</option><option value="venue">球場順</option><option value="team">チーム名順</option></select></label>
+        {customDateError ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm font-bold text-red-700 sm:col-span-4">{customDateError}</p> : null}
       </section>
 
       <section className="space-y-3">
