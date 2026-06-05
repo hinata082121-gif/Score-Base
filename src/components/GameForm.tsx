@@ -16,7 +16,7 @@ import {
   statusLabels,
 } from "@/lib/constants";
 import { loadGame, loadSettings, uid, upsertGame } from "@/lib/storage";
-import type { BallLogGame, GameMode, InningScore, PitchEvent, PlateAppearance, RunnerState } from "@/lib/types";
+import type { ScoreBaseGame, GameMode, InningScore, PitchEvent, PlateAppearance, RunnerState } from "@/lib/types";
 
 const field = "min-h-11 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-950 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100";
 const label = "space-y-1 text-sm font-bold text-stone-700";
@@ -26,7 +26,7 @@ type PlateAppearanceDraft = Omit<PlateAppearance, "id" | "baseStateBefore" | "ba
   result: string;
 };
 
-function emptyGame(mode: GameMode): BallLogGame {
+function emptyGame(mode: GameMode): ScoreBaseGame {
   const now = new Date().toISOString();
   return {
     id: uid("game"),
@@ -81,9 +81,9 @@ function runnerText(state: RunnerState) {
 
 export function GameForm({ mode, editId }: { mode: GameMode; editId?: string }) {
   const router = useRouter();
-  const [game, setGame] = useState<BallLogGame>(() => emptyGame(mode));
+  const [game, setGame] = useState<ScoreBaseGame>(() => emptyGame(mode));
   const [savedLabel, setSavedLabel] = useState("未保存");
-  const [history, setHistory] = useState<BallLogGame[]>([]);
+  const [history, setHistory] = useState<ScoreBaseGame[]>([]);
   const [paDraft, setPaDraft] = useState<PlateAppearanceDraft>({
     inning: 1,
     topBottom: "TOP",
@@ -113,7 +113,7 @@ export function GameForm({ mode, editId }: { mode: GameMode; editId?: string }) 
   }, [editId]);
 
   useEffect(() => {
-    const key = `balllog-score:draft:${editId ?? mode}`;
+    const key = `score-base:draft:${editId ?? mode}`;
     const timer = window.setTimeout(() => {
       localStorage.setItem(key, JSON.stringify(game));
       setSavedLabel("下書き自動保存済み");
@@ -121,12 +121,12 @@ export function GameForm({ mode, editId }: { mode: GameMode; editId?: string }) 
     return () => window.clearTimeout(timer);
   }, [game, editId, mode]);
 
-  function patch(patchValue: Partial<BallLogGame>) {
+  function patch(patchValue: Partial<ScoreBaseGame>) {
     setGame((current) => ({ ...current, ...patchValue, updatedAt: new Date().toISOString() }));
     setSavedLabel("編集中");
   }
 
-  function remember(next: BallLogGame) {
+  function remember(next: ScoreBaseGame) {
     setHistory((items) => [game, ...items].slice(0, 20));
     setGame(next);
     setSavedLabel("編集中");
@@ -224,7 +224,7 @@ export function GameForm({ mode, editId }: { mode: GameMode; editId?: string }) 
         <label className={label}>ホームチーム<input className={field} value={game.homeTeamName} onChange={(e) => patch({ homeTeamName: e.target.value })} /></label>
         <label className={label}>応援チーム<input className={field} value={game.favoriteTeamName} onChange={(e) => patch({ favoriteTeamName: e.target.value })} /></label>
         <label className={label}>試合結果<input className={field} value={game.result} onChange={(e) => patch({ result: e.target.value })} placeholder="例: 3-2 勝利" /></label>
-        <label className={label}>試合状態<select className={field} value={game.status} onChange={(e) => patch({ status: e.target.value as BallLogGame["status"] })}>{Object.entries(statusLabels).map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
+        <label className={label}>試合状態<select className={field} value={game.status} onChange={(e) => patch({ status: e.target.value as ScoreBaseGame["status"] })}>{Object.entries(statusLabels).map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
         <label className={label}>理由メモ<input className={field} value={game.statusReason} onChange={(e) => patch({ statusReason: e.target.value })} placeholder="コールド・中断などの理由" /></label>
         <label className={label}>開始時刻<input className={field} type="time" value={game.startTime} onChange={(e) => patch({ startTime: e.target.value })} /></label>
         <label className={label}>終了時刻<input className={field} type="time" value={game.endTime} onChange={(e) => patch({ endTime: e.target.value })} /></label>

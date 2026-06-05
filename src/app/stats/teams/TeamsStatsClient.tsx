@@ -5,17 +5,17 @@ import { PageShell } from "@/components/PageShell";
 import { SaveImageButton } from "@/components/SaveImageButton";
 import { loadGames } from "@/lib/storage";
 import { teamStats } from "@/lib/stats";
-import type { BallLogGame } from "@/lib/types";
+import type { ScoreBaseGame } from "@/lib/types";
 
 export function TeamsStatsClient() {
-  const [games, setGames] = useState<BallLogGame[]>([]);
+  const [games, setGames] = useState<ScoreBaseGame[]>([]);
   useEffect(() => setGames(loadGames()), []);
   const rows = teamStats(games);
 
   return (
     <PageShell title="チーム成績" lead="保存済み試合からチームごとの勝敗、得点、打撃指標を集計します。">
       <div className="space-y-5">
-        <SaveImageButton targetId="teams-output" filename="balllog-teams.png" />
+        <SaveImageButton targetId="teams-output" filename="score-base-teams.png" />
         <section id="teams-output" className="overflow-x-auto rounded-md border border-stone-200 bg-white p-4 shadow-sm">
           <h2 className="text-xl font-black text-stone-950">チーム成績カード</h2>
           <table className="mt-3 w-max min-w-full text-sm">

@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { PageShell } from "@/components/PageShell";
 import { ScorebookTable } from "@/components/ScorebookTable";
 import { loadGame, loadSettings } from "@/lib/storage";
-import type { BallLogGame, ScorebookStyle } from "@/lib/types";
+import type { ScoreBaseGame, ScorebookStyle } from "@/lib/types";
 
 export function ScorebookClient({ id }: { id: string }) {
-  const [game, setGame] = useState<BallLogGame | null>(null);
+  const [game, setGame] = useState<ScoreBaseGame | null>(null);
   const [style, setStyle] = useState<ScorebookStyle>("WASEDA");
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 {
-  "name": "BallLog Score",
-  "short_name": "BallLog",
-  "description": "野球観戦ログとスコアブック記録を残せるWebアプリ",
+  "name": "Score Base",
+  "short_name": "Score Base",
+  "description": "野球観戦記録・簡易スコア・スコアブック記録をまとめて残せるWebアプリ",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#fafaf9",

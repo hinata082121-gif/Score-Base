@@ -1,4 +1,4 @@
-import type { BallLogGame, PlateAppearance } from "./types";
+import type { ScoreBaseGame, PlateAppearance } from "./types";
 
 const hitResults = new Set(["単打", "二塁打", "三塁打", "本塁打"]);
 const atBatExcluded = new Set(["四球", "死球", "犠打", "犠飛", "打撃妨害"]);
@@ -8,14 +8,14 @@ function avg(value: number) {
   return value.toFixed(3).replace(/^0/, "");
 }
 
-function isWin(game: BallLogGame, team: string) {
+function isWin(game: ScoreBaseGame, team: string) {
   const score = scoreFor(game);
   if (score.home === score.away) return "draw";
   const winner = score.home > score.away ? game.homeTeamName : game.awayTeamName;
   return winner === team ? "win" : "loss";
 }
 
-export function scoreFor(game: BallLogGame) {
+export function scoreFor(game: ScoreBaseGame) {
   return game.inningScores.reduce(
     (sum, inning) => ({
       away: sum.away + (Number(inning.top) || 0),
@@ -25,7 +25,7 @@ export function scoreFor(game: BallLogGame) {
   );
 }
 
-export function playerStats(games: BallLogGame[]) {
+export function playerStats(games: ScoreBaseGame[]) {
   const rows = new Map<string, { name: string; games: Set<string>; pa: number; ab: number; h: number; doubles: number; triples: number; hr: number; rbi: number; runs: number; bb: number; hbp: number; so: number; sb: number }>();
   for (const game of games) {
     for (const pa of game.plateAppearances) {
@@ -55,7 +55,7 @@ export function playerStats(games: BallLogGame[]) {
   });
 }
 
-export function pitcherStats(games: BallLogGame[]) {
+export function pitcherStats(games: ScoreBaseGame[]) {
   const rows = new Map<string, { name: string; games: Set<string>; outs: number; h: number; so: number; bb: number; runs: number; er: number }>();
   const appearances = games.flatMap((game) => game.plateAppearances.map((pa) => ({ game, pa })));
   for (const { game, pa } of appearances) {
@@ -78,7 +78,7 @@ export function pitcherStats(games: BallLogGame[]) {
   }));
 }
 
-export function teamStats(games: BallLogGame[]) {
+export function teamStats(games: ScoreBaseGame[]) {
   const rows = new Map<string, { team: string; games: number; wins: number; losses: number; draws: number; runs: number; allowed: number; hr: number; pa: PlateAppearance[] }>();
   for (const game of games) {
     const score = scoreFor(game);

@@ -64,7 +64,7 @@ export type RunnerState = {
   third: string;
 };
 
-export type BallLogGame = {
+export type ScoreBaseGame = {
   id: string;
   mode: GameMode;
   gameDate: string;
@@ -103,7 +103,7 @@ export type BallLogGame = {
   updatedAt: string;
 };
 
-export type BallLogSettings = {
+export type ScoreBaseSettings = {
   useSpeed: boolean;
   usePitchType: boolean;
   useCourse: boolean;

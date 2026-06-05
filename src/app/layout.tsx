@@ -14,12 +14,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BallLog Score / ボールログスコア",
-  description: "野球観戦ログとスコアブック記録を残せるWebアプリ",
+  title: "Score Base | 野球観戦記録・スコアブック管理アプリ",
+  description: "Score Baseは、野球観戦記録、簡易スコア、詳細スコアブック、個人成績、チーム成績をまとめて管理できるWebアプリです。",
+  keywords: ["Score Base", "野球観戦記録", "スコアブック", "野球スコア", "草野球", "学生野球", "試合記録", "個人成績", "チーム成績"],
   manifest: "/manifest.json",
+  openGraph: {
+    title: "Score Base | 野球観戦記録・スコアブック管理アプリ",
+    description: "Score Baseは、野球観戦記録、簡易スコア、詳細スコアブック、個人成績、チーム成績をまとめて管理できるWebアプリです。",
+    siteName: "Score Base",
+    type: "website",
+    locale: "ja_JP",
+  },
+  twitter: {
+    card: "summary",
+    title: "Score Base | 野球観戦記録・スコアブック管理アプリ",
+    description: "Score Baseは、野球観戦記録、簡易スコア、詳細スコアブック、個人成績、チーム成績をまとめて管理できるWebアプリです。",
+  },
   appleWebApp: {
     capable: true,
-    title: "BallLog Score",
+    title: "Score Base",
     statusBarStyle: "default",
   },
   icons: {

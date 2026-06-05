@@ -6,10 +6,10 @@ import { PageShell } from "@/components/PageShell";
 import { modeLabels, statusLabels } from "@/lib/constants";
 import { loadGame } from "@/lib/storage";
 import { scoreFor } from "@/lib/stats";
-import type { BallLogGame } from "@/lib/types";
+import type { ScoreBaseGame } from "@/lib/types";
 
 export function GameDetailClient({ id }: { id: string }) {
-  const [game, setGame] = useState<BallLogGame | null>(null);
+  const [game, setGame] = useState<ScoreBaseGame | null>(null);
 
   useEffect(() => {
     setGame(loadGame(id) ?? null);

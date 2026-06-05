@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PageShell } from "@/components/PageShell";
 import { defaultSettings } from "@/lib/constants";
 import { loadSettings, saveSettings } from "@/lib/storage";
-import type { BallLogSettings } from "@/lib/types";
+import type { ScoreBaseSettings } from "@/lib/types";
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
@@ -16,12 +16,12 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
 }
 
 export function SettingsClient() {
-  const [settings, setSettings] = useState<BallLogSettings>(defaultSettings);
+  const [settings, setSettings] = useState<ScoreBaseSettings>(defaultSettings);
   const [saved, setSaved] = useState("未保存");
 
   useEffect(() => setSettings(loadSettings()), []);
 
-  function patch(patchValue: Partial<BallLogSettings>) {
+  function patch(patchValue: Partial<ScoreBaseSettings>) {
     const next = { ...settings, ...patchValue };
     setSettings(next);
     saveSettings(next);
@@ -40,8 +40,8 @@ export function SettingsClient() {
           <Toggle label="打球方向記録を使う" checked={settings.useHitDirection} onChange={(checked) => patch({ useHitDirection: checked })} />
         </section>
         <section className="grid gap-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-2">
-          <label className="text-sm font-bold text-stone-700">デフォルト出力形式<select className="mt-1 min-h-11 w-full rounded-md border border-stone-300 px-3" value={settings.defaultStyle} onChange={(e) => patch({ defaultStyle: e.target.value as BallLogSettings["defaultStyle"] })}><option value="WASEDA">早稲田式</option><option value="KEIO">慶應式</option></select></label>
-          <label className="text-sm font-bold text-stone-700">スコアブック表示密度<select className="mt-1 min-h-11 w-full rounded-md border border-stone-300 px-3" value={settings.density} onChange={(e) => patch({ density: e.target.value as BallLogSettings["density"] })}><option value="STANDARD">標準</option><option value="COMPACT">コンパクト</option></select></label>
+          <label className="text-sm font-bold text-stone-700">デフォルト出力形式<select className="mt-1 min-h-11 w-full rounded-md border border-stone-300 px-3" value={settings.defaultStyle} onChange={(e) => patch({ defaultStyle: e.target.value as ScoreBaseSettings["defaultStyle"] })}><option value="WASEDA">早稲田式</option><option value="KEIO">慶應式</option></select></label>
+          <label className="text-sm font-bold text-stone-700">スコアブック表示密度<select className="mt-1 min-h-11 w-full rounded-md border border-stone-300 px-3" value={settings.density} onChange={(e) => patch({ density: e.target.value as ScoreBaseSettings["density"] })}><option value="STANDARD">標準</option><option value="COMPACT">コンパクト</option></select></label>
         </section>
       </div>
     </PageShell>

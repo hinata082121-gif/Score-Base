@@ -5,10 +5,10 @@ import { PageShell } from "@/components/PageShell";
 import { SaveImageButton } from "@/components/SaveImageButton";
 import { loadGames } from "@/lib/storage";
 import { pitcherStats, playerStats } from "@/lib/stats";
-import type { BallLogGame } from "@/lib/types";
+import type { ScoreBaseGame } from "@/lib/types";
 
 export function PlayersStatsClient() {
-  const [games, setGames] = useState<BallLogGame[]>([]);
+  const [games, setGames] = useState<ScoreBaseGame[]>([]);
   useEffect(() => setGames(loadGames()), []);
   const batters = playerStats(games);
   const pitchers = pitcherStats(games);
@@ -16,7 +16,7 @@ export function PlayersStatsClient() {
   return (
     <PageShell title="個人成績" lead="詳細記録・簡易記録から、MVP向けの打者/投手成績を集計します。">
       <div className="space-y-5">
-        <SaveImageButton targetId="players-output" filename="balllog-players.png" />
+        <SaveImageButton targetId="players-output" filename="score-base-players.png" />
         <section id="players-output" className="overflow-x-auto rounded-md border border-stone-200 bg-white p-4 shadow-sm">
           <h2 className="text-xl font-black text-stone-950">打者成績</h2>
           <table className="mt-3 w-max min-w-full text-sm">

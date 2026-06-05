@@ -1,7 +1,7 @@
 "use client";
 
 import { SaveImageButton } from "./SaveImageButton";
-import type { BallLogGame, ScorebookStyle } from "@/lib/types";
+import type { ScoreBaseGame, ScorebookStyle } from "@/lib/types";
 
 function cellClass(style: ScorebookStyle) {
   return style === "WASEDA"
@@ -9,7 +9,7 @@ function cellClass(style: ScorebookStyle) {
     : "bg-[linear-gradient(90deg,transparent_49%,#a16207_50%,transparent_51%),linear-gradient(0deg,transparent_49%,#a16207_50%,transparent_51%)]";
 }
 
-export function ScorebookTable({ game, style }: { game: BallLogGame; style: ScorebookStyle }) {
+export function ScorebookTable({ game, style }: { game: ScoreBaseGame; style: ScorebookStyle }) {
   const innings = Array.from(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, ...game.plateAppearances.map((pa) => pa.inning)]));
   const orders = Array.from(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, ...game.plateAppearances.map((pa) => pa.battingOrder)])).sort((a, b) => a - b);
 
@@ -20,13 +20,13 @@ export function ScorebookTable({ game, style }: { game: BallLogGame; style: Scor
           <h2 className="text-lg font-black text-stone-950">{style === "WASEDA" ? "早稲田式" : "慶應式"}スコアブック</h2>
           <p className="text-sm text-stone-600">{game.awayTeamName} vs {game.homeTeamName}</p>
         </div>
-        <SaveImageButton targetId="scorebook-export" filename="balllog-scorebook.png" />
+        <SaveImageButton targetId="scorebook-export" filename="score-base-scorebook.png" />
       </div>
       <div className="overflow-x-auto rounded-md border border-stone-300 bg-white shadow-sm">
         <div id="scorebook-export" className="w-max min-w-full bg-white p-4">
           <div className="mb-3 flex items-end justify-between gap-6">
             <div>
-              <p className="text-xs font-bold text-emerald-700">BallLog Score</p>
+              <p className="text-xs font-bold text-emerald-700">Score Base</p>
               <h3 className="text-xl font-black text-stone-950">{game.awayTeamName} vs {game.homeTeamName}</h3>
               <p className="text-sm text-stone-600">{game.gameDate} / {game.venue} / {game.competition}</p>
             </div>

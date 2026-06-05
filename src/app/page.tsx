@@ -20,11 +20,11 @@ export default function Home() {
               観戦ログ兼スコアブック
             </div>
             <div>
-              <h1 className="text-4xl font-black leading-tight text-stone-950 sm:text-5xl">BallLog Score</h1>
-              <p className="mt-2 text-lg font-bold text-stone-700">ボールログスコア</p>
+              <h1 className="text-4xl font-black leading-tight text-stone-950 sm:text-5xl">Score Base</h1>
+              <p className="mt-2 text-lg font-bold text-stone-700">観戦の記憶も、試合の記録も、ひとつのベースに。</p>
             </div>
             <p className="max-w-xl text-base leading-7 text-stone-600">
-              球場での観戦メモから、スタメン・イニングスコア・打席ごとのスコアブック記録まで、スマホで残せる野球観戦記録アプリです。
+              Score Baseは、観戦の思い出と試合の記録をひとつに残せる野球記録アプリです。ライトな観戦メモから、両チームのスタメン・スコア記録、ボタン入力式の詳細スコアブックまで、用途に合わせて3つの記録モードを選べます。
             </p>
           </div>
           <div className="grid grid-cols-9 gap-1 rounded-md bg-stone-900 p-4 text-center font-mono text-sm font-black text-lime-200 shadow-inner">
