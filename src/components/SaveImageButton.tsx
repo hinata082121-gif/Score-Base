@@ -2,21 +2,29 @@
 
 import { toPng } from "html-to-image";
 import { Download } from "lucide-react";
+import { deploymentErrorGuidance } from "@/lib/errorGuidance";
 
 export function SaveImageButton({ targetId, filename }: { targetId: string; filename: string }) {
   async function save() {
     const node = document.getElementById(targetId);
-    if (!node) return;
-    const dataUrl = await toPng(node, {
-      cacheBust: true,
-      pixelRatio: 2,
-      backgroundColor: "#ffffff",
-      style: { margin: "0" },
-    });
-    const link = document.createElement("a");
-    link.download = filename;
-    link.href = dataUrl;
-    link.click();
+    if (!node) {
+      window.alert("画像保存対象が見つかりません。出力カードが表示されているか確認してください。");
+      return;
+    }
+    try {
+      const dataUrl = await toPng(node, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+        style: { margin: "0" },
+      });
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = dataUrl;
+      link.click();
+    } catch {
+      window.alert(`画像保存に失敗しました。${deploymentErrorGuidance("画像 PNG")}`);
+    }
   }
 
   return (

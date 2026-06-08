@@ -5,6 +5,7 @@ import type { ScoreBaseGame, ScoreBaseSettings } from "./types";
 
 const gamesKey = "score-base:games";
 const settingsKey = "score-base:settings";
+// 旧名称時代のlocalStorage互換用。読み取りだけに使い、新規保存はscore-base:*へ統一する。
 const legacyGamesKey = "balllog-score:games";
 const legacySettingsKey = "balllog-score:settings";
 

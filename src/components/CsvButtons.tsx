@@ -1,15 +1,20 @@
 "use client";
 
 import { Download } from "lucide-react";
+import { deploymentErrorGuidance } from "@/lib/errorGuidance";
 
 export function downloadText(filename: string, text: string, type = "text/csv;charset=utf-8") {
-  const blob = new Blob([text], { type });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+  try {
+    const blob = new Blob([text], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    window.alert(`CSV出力に失敗しました。${deploymentErrorGuidance("CSV")}`);
+  }
 }
 
 export function CsvDownloadButton({ filename, getCsv, label = "CSV保存" }: { filename: string; getCsv: () => string; label?: string }) {

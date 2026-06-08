@@ -2,6 +2,7 @@
 
 import { Copy, Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { deploymentErrorGuidance } from "@/lib/errorGuidance";
 
 export function ShareButton({ text, url }: { text: string; url?: string }) {
   const [canShare, setCanShare] = useState(false);
@@ -20,8 +21,12 @@ export function ShareButton({ text, url }: { text: string; url?: string }) {
         // Fall back to clipboard below.
       }
     }
-    await navigator.clipboard.writeText(fullText);
-    window.alert("共有テキストをコピーしました。");
+    try {
+      await navigator.clipboard.writeText(fullText);
+      window.alert("共有テキストをコピーしました。");
+    } catch {
+      window.alert(`共有テキストのコピーに失敗しました。${deploymentErrorGuidance("共有")}`);
+    }
   }
 
   return (
