@@ -121,6 +121,26 @@ DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=public"
 
 Vercelでは production / preview / development の各Environmentに必要に応じて `DATABASE_URL` を設定してください。DB未設定時は、DB保存系のServer Actionsは分かりやすいエラーを返しますが、localStorageベースのMVP画面は利用できます。
 
+## Vercel Project設定
+
+- Framework Preset: Next.js
+- Install Command: `npm install`
+- Build Command: `npm run build`
+- Output Directory: Next.js default
+- Production Branch: `main`
+- Node.js Version: Vercel defaultで問題ありません。
+- Prisma Client生成: `npm run build` の先頭で `prisma generate` を実行します。
+
+本番URL例:
+
+```env
+NEXTAUTH_URL="https://score-base.vercel.app"
+AUTH_URL="https://score-base.vercel.app"
+AUTH_TRUST_HOST="true"
+```
+
+`AUTH_SECRET`は十分に長いランダム文字列を使います。`DATABASE_URL`は本番PostgreSQLのURLを使い、Production / Preview / Developmentで必要に応じてDBを分けます。`.env`の値はGitHubへpushしません。
+
 ## Prisma migration
 
 ローカル開発:
@@ -152,6 +172,22 @@ npm run db:seed
 ```
 
 作成されるサンプルユーザーは `seed-owner@example.com`、`seed-admin@example.com`、`seed-editor@example.com`、`seed-scorer@example.com`、`seed-viewer@example.com` です。サンプル用パスワードは `scorebase-demo` です。
+
+## npm audit方針
+
+`npm audit`はリリース前に実行します。互換範囲で修正できる場合は `npm audit fix` を使いますが、`npm audit fix --force` はNext.js、React、Prismaなどのmajor downgrade/upgradeを伴うため原則実行しません。forceが必要な脆弱性は、対象package、経路、影響、修正待ち理由を記録してから、公式アップデートで互換修正が出た時点で対応します。
+
+v0.5.1時点の残課題:
+
+- `next` 経由の `postcss <8.5.10`: moderate。auditの提示は `next@9.3.3` への破壊的ダウングレードのため未適用。
+- `prisma` 経由の `@prisma/dev -> @hono/node-server <1.19.13`: moderate。auditの提示は `prisma@6.19.3` への破壊的ダウングレードのため未適用。
+
+## 将来対応予定
+
+- localStorage中心のMVP画面をPrisma/PostgreSQL保存へ段階移行
+- Auth.js本格導入とメール認証/パスワード再設定
+- 招待期限切れ処理と監査ログ表示
+- 権限別E2EテストとVercel Preview環境でのSmoke Test自動化
 
 ## 公開後チェック
 
