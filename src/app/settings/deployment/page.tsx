@@ -12,6 +12,37 @@ type QueryablePrisma = {
   $queryRawUnsafe?: (query: string) => Promise<unknown>;
 };
 
+const requiredTables = [
+  "User",
+  "Team",
+  "Player",
+  "Game",
+  "TeamMember",
+  "Invitation",
+  "Account",
+  "Session",
+  "VerificationToken",
+  "AuditLog",
+  "GameTeam",
+  "LineupEntry",
+  "InningScore",
+  "PlateAppearance",
+  "PitchEvent",
+  "RunnerEvent",
+  "GameNote",
+  "ExportSnapshot",
+  "_prisma_migrations",
+];
+
+function tableNamesFromQueryResult(result: unknown) {
+  if (!Array.isArray(result)) return [];
+  return result.flatMap((row) => {
+    if (!row || typeof row !== "object" || !("table_name" in row)) return [];
+    const tableName = (row as { table_name?: unknown }).table_name;
+    return typeof tableName === "string" ? [tableName] : [];
+  });
+}
+
 async function checkPrisma() {
   const databaseUrl = resolveDatabaseUrl();
   if (!databaseUrl.url) {
@@ -20,15 +51,26 @@ async function checkPrisma() {
       message: "DATABASE_URLまたはVercel SupabaseのPostgreSQL URLが未設定のため接続チェックをスキップしました。",
       guidance: deploymentErrorGuidance("DATABASE_URL"),
       source: databaseUrlSourceLabel(databaseUrl.source),
+      tableStatus: "未確認",
+      missingTables: [],
     };
   }
   try {
     const prisma = await getPrisma() as QueryablePrisma;
     if (prisma.$queryRawUnsafe) await prisma.$queryRawUnsafe("SELECT 1");
-    return { status: "成功", message: "Prisma接続を確認しました。", guidance: "", source: databaseUrlSourceLabel(databaseUrl.source) };
+    let tableStatus = "未確認";
+    let missingTables: string[] = [];
+    if (prisma.$queryRawUnsafe) {
+      const tableList = requiredTables.map((name) => `'${name.replaceAll("'", "''")}'`).join(", ");
+      const result = await prisma.$queryRawUnsafe(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN (${tableList})`);
+      const existingTables = new Set(tableNamesFromQueryResult(result));
+      missingTables = requiredTables.filter((table) => !existingTables.has(table));
+      tableStatus = missingTables.length === 0 ? "成功" : `不足あり (${requiredTables.length - missingTables.length}/${requiredTables.length})`;
+    }
+    return { status: "成功", message: "Prisma接続を確認しました。", guidance: "", source: databaseUrlSourceLabel(databaseUrl.source), tableStatus, missingTables };
   } catch (error) {
     const message = publicOperationalErrorMessage(error, "Prisma接続に失敗しました。");
-    return { status: "失敗", message, guidance: deploymentErrorGuidance(message), source: databaseUrlSourceLabel(databaseUrl.source) };
+    return { status: "失敗", message, guidance: deploymentErrorGuidance(message), source: databaseUrlSourceLabel(databaseUrl.source), tableStatus: "未確認", missingTables: [] };
   }
 }
 
@@ -69,6 +111,8 @@ export default async function DeploymentSettingsPage() {
           <p className="mt-1 text-sm font-bold text-stone-700">接続元: {prisma.source}</p>
           <p className="mt-2 text-sm font-bold text-stone-700">結果: {prisma.status}</p>
           <p className="mt-1 text-sm leading-6 text-stone-600">{prisma.message}</p>
+          <p className="mt-2 text-sm font-bold text-stone-700">必須テーブル: {prisma.tableStatus}</p>
+          {prisma.missingTables.length > 0 ? <p className="mt-1 break-all text-sm leading-6 text-red-700">不足: {prisma.missingTables.join(", ")}</p> : null}
           {prisma.guidance ? <p className="mt-2 rounded-md bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-900">{prisma.guidance}</p> : null}
           <p className="mt-3 text-sm font-bold leading-6 text-stone-700">本番DBのmigration状態は、ProductionのDATABASE_URLへPOSTGRES_PRISMA_URLを設定した後に `npm run prisma:migrate:deploy` または `npx prisma migrate deploy` で確認・適用してください。</p>
         </section>
