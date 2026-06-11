@@ -11,6 +11,7 @@ type PrismaClientLike = {
   user: Record<string, (...args: unknown[]) => Promise<unknown>>;
   plateAppearance: Record<string, (...args: unknown[]) => Promise<unknown>>;
   exportSnapshot: Record<string, (...args: unknown[]) => Promise<unknown>>;
+  auditLog: Record<string, (...args: unknown[]) => Promise<unknown>>;
   $transaction?: <T>(operations: Promise<T>[]) => Promise<T[]>;
 };
 

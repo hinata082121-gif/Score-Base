@@ -15,9 +15,19 @@ function cardClass() {
   return "w-[760px] max-w-full rounded-md border border-stone-300 bg-white p-6 shadow-sm";
 }
 
-export function ExportClient({ id, initialGame, initialGames = [], dbEnabled = false }: { id: string; initialGame?: ScoreBaseGame | null; initialGames?: ScoreBaseGame[]; dbEnabled?: boolean }) {
+type ExportSnapshotSummary = {
+  id: string;
+  createdAt: string;
+  type: string;
+  style: string;
+  fileName: string;
+  dataSummary: string;
+};
+
+export function ExportClient({ id, initialGame, initialGames = [], initialSnapshots = [], dbEnabled = false }: { id: string; initialGame?: ScoreBaseGame | null; initialGames?: ScoreBaseGame[]; initialSnapshots?: ExportSnapshotSummary[]; dbEnabled?: boolean }) {
   const [game, setGame] = useState<ScoreBaseGame | null>(initialGame ?? null);
   const [games, setGames] = useState<ScoreBaseGame[]>(initialGames);
+  const [snapshots, setSnapshots] = useState(initialSnapshots);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -38,12 +48,30 @@ export function ExportClient({ id, initialGame, initialGames = [], dbEnabled = f
     if (!dbEnabled || !game) return;
     const result = await saveExportSnapshotAction({ gameId: game.id, type, fileName, style, dataJson: JSON.stringify({ ...summary, type, style, fileName, createdAt: new Date().toISOString() }) });
     if (!result.ok) console.warn("ExportSnapshot保存に失敗しました。", result.error);
+    if (result.ok) {
+      setSnapshots((items) => [{ id: `${type}-${Date.now()}`, createdAt: new Date().toISOString(), type, style, fileName, dataSummary: summary.gameTitle }, ...items].slice(0, 10));
+    }
   }
 
   return (
     <PageShell title="出力画面" lead="各カードは固定幅で余白を確保し、PNGとして保存できます。">
       <div className="space-y-8">
         <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900">{dbEnabled ? "DB保存済みデータから出力しています。" : "ローカル保存データから出力しています。"}</p>
+        {dbEnabled ? (
+          <section className="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
+            <h2 className="text-lg font-black text-stone-950">この試合の最近の出力履歴</h2>
+            <div className="mt-3 grid gap-2">
+              {snapshots.map((snapshot) => (
+                <div key={snapshot.id} className="rounded-md bg-stone-50 p-3 text-sm">
+                  <p className="font-black text-stone-900">{snapshot.type} / {snapshot.style || "-"}</p>
+                  <p className="mt-1 break-all text-xs font-bold text-stone-600">{snapshot.fileName || "ファイル名なし"} / {snapshot.createdAt ? snapshot.createdAt.slice(0, 16).replace("T", " ") : "日時なし"}</p>
+                  <p className="mt-1 break-all text-xs text-stone-500">{snapshot.dataSummary || "概要なし"}</p>
+                </div>
+              ))}
+              {snapshots.length === 0 ? <p className="rounded-md bg-stone-50 p-3 text-sm font-bold text-stone-500">出力履歴はまだありません。CSV / PNG / share操作後に表示されます。</p> : null}
+            </div>
+          </section>
+        ) : null}
         <section className="space-y-3 overflow-x-auto">
           <SaveImageButton targetId="watch-card" filename="score-base-watch-card.png" onSaved={() => recordExport("PNG", "score-base-watch-card.png", "SIMPLE")} />
           <div id="watch-card" className={cardClass()}>

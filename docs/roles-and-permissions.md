@@ -43,3 +43,12 @@ Server Actions must enforce these rules. UI button visibility is only a convenie
 - SCORER and higher roles can create/update team scorebook records.
 - Game deletion is separate from scorebook input: owners and ADMIN+ can delete team games; SCORER cannot delete team games.
 - UI visibility is still secondary. Treat Server Action authorization as the source of truth.
+
+## v0.7.3 Manual Verification
+
+- VIEWER: can open team and related records, cannot mutate team/player/game/member data.
+- SCORER: can update scorebook records for team games, cannot delete team games.
+- EDITOR: can edit team/player data, cannot manage invitations or members.
+- ADMIN: can manage invitations and members, can delete team games, cannot remove or downgrade the last OWNER.
+- OWNER: full team control; OWNER invitations are intentionally rejected.
+- Check Server Action failures from the UI and Supabase row changes together. UI button visibility alone is not sufficient.

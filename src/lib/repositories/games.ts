@@ -2,6 +2,7 @@ import { defaultInnings } from "@/lib/constants";
 import { canDeleteGame, canEditGame, canViewGame } from "@/lib/auth/permissions";
 import { getMembership, PublicActionError, requireTeamRole } from "@/lib/auth/serverAuth";
 import { getPrisma } from "@/lib/db/prisma";
+import { recordAuditLog } from "@/lib/repositories/auditLogs";
 import type { InningScore, PitchEvent, PlayerInput, PlateAppearance, ScoreBaseGame } from "@/lib/types";
 
 type DbGame = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -277,6 +278,7 @@ export async function createGameForUser(input: ScoreBaseGame, userId: string) {
     data: { userId, ownerId: userId, createdById: userId, updatedById: userId, ...baseGameData(input), ...nestedGameData(input) },
     include: includeGame,
   }) as DbGame;
+  await recordAuditLog({ userId, teamId: text(row.teamId), action: "CREATE", resourceType: "Game", resourceId: text(row.id), detail: `${input.awayTeamName} vs ${input.homeTeamName}` });
   return dbGameToScoreBaseGame(row);
 }
 
@@ -297,13 +299,16 @@ export async function updateGameForUser(id: string, input: ScoreBaseGame, userId
     },
     include: includeGame,
   }) as DbGame;
+  await recordAuditLog({ userId, teamId: text(row.teamId), action: "UPDATE", resourceType: "Game", resourceId: id, detail: input.mode });
   return dbGameToScoreBaseGame(row);
 }
 
 export async function deleteGameForUser(id: string, userId: string) {
   const prisma = await getPrisma();
-  await assertCanDelete(await prisma.game.findUnique({ where: { id } }) as DbGame | null, userId);
-  return prisma.game.delete({ where: { id } });
+  const current = await assertCanDelete(await prisma.game.findUnique({ where: { id } }) as DbGame | null, userId);
+  const deleted = await prisma.game.delete({ where: { id } });
+  await recordAuditLog({ userId, teamId: text(current.teamId), action: "DELETE", resourceType: "Game", resourceId: id });
+  return deleted;
 }
 
 export async function duplicateGameForUser(id: string, userId: string) {

@@ -98,6 +98,16 @@ v0.7.1ではschema変更があるため、本番反映には `npm run prisma:mig
 - OWNER招待をServer Action側で拒否
 - Supabase Table Editor確認と二ユーザー実データ権限テストは、認証済みSupabaseコンソールと実テストアカウントを使って手動確認が必要
 
+## v0.7.3 Smoke Test Support
+
+- `/settings/release-checklist` に本番実データSmoke Test支援セクションを追加
+- `/games/[id]/export` にDB保存済みGameの最近のExportSnapshot履歴を表示
+- 招待作成時に24時間 / 7日 / 30日 / 無期限を選択可能
+- 期限切れ招待を招待画面と受諾画面で表示
+- Team / TeamMember / Invitation / Game / ExportSnapshot の主要mutationでAuditLogを記録
+- AuditLog保存に失敗しても本体操作は止めない
+- schema変更なし。v0.7.3追加migrationはありません。
+
 ## v0.5 公開準備
 
 - Vercel公開手順、必須環境変数、Prisma本番migration手順を整理

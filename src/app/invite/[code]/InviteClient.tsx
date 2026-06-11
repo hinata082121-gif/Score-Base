@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { acceptInvitationAction } from "@/app/actions/invitations";
 import { AccessStateCard } from "@/components/AccessStateCard";
 import { PageShell } from "@/components/PageShell";
@@ -12,11 +12,17 @@ type InviteInfo = {
   teamName: string;
   role: string;
   status: string;
+  expiresAt?: string;
 };
 
 export function InviteClient({ code, invitation, loggedIn }: { code: string; invitation?: InviteInfo | null; loggedIn: boolean }) {
   const [error, setError] = useState("");
+  const [nowMs, setNowMs] = useState(0);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setNowMs(Date.now());
+  }, []);
 
   if (!invitation) {
     return (
@@ -38,6 +44,7 @@ export function InviteClient({ code, invitation, loggedIn }: { code: string; inv
   }
 
   const teamId = invitation.teamId;
+  const expired = nowMs > 0 && invitation.status === "PENDING" && invitation.expiresAt ? new Date(invitation.expiresAt).getTime() < nowMs : false;
 
   function accept() {
     startTransition(async () => {
@@ -54,11 +61,11 @@ export function InviteClient({ code, invitation, loggedIn }: { code: string; inv
     <PageShell title={`${invitation.teamName} への招待`} lead={`付与される権限: ${invitation.role}`}>
       <section className="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
         {error ? <p className="mb-3 rounded-md bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
-        {invitation.status !== "PENDING" ? (
-          <AccessStateCard title="この招待は利用できません" message={`現在の状態: ${invitation.status}`} href="/teams" actionLabel="チーム一覧へ" />
+        {invitation.status !== "PENDING" || expired ? (
+          <AccessStateCard title="この招待は利用できません" message={expired ? "招待リンクの期限が切れています。" : `現在の状態: ${invitation.status}`} href="/teams" actionLabel="チーム一覧へ" />
         ) : (
           <>
-            <p className="text-sm leading-6 text-stone-700">ログイン中のユーザーで、このチームに参加します。</p>
+            <p className="text-sm leading-6 text-stone-700">ログイン中のユーザーで、このチームに参加します。期限: {invitation.expiresAt ? invitation.expiresAt.slice(0, 10) : "無期限"}</p>
             <button disabled={isPending} className="mt-4 min-h-12 rounded-md bg-emerald-700 px-4 text-sm font-bold text-white disabled:opacity-50" type="button" onClick={accept}>招待を受ける</button>
           </>
         )}

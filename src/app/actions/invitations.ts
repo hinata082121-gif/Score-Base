@@ -12,10 +12,19 @@ function actionError(error: unknown) {
   return publicActionError(error) ?? dbErrorMessage(error);
 }
 
-export async function createInvitationAction(teamId: string, role: TeamRole, email?: string): Promise<ActionResult> {
+function expiresAtFor(value?: string) {
+  if (value === "1" || value === "7" || value === "30") {
+    const date = new Date();
+    date.setDate(date.getDate() + Number(value));
+    return date;
+  }
+  return null;
+}
+
+export async function createInvitationAction(teamId: string, role: TeamRole, email?: string, expiresInDays?: string): Promise<ActionResult> {
   try {
     const user = await requireCurrentUser();
-    const invitation = await createInvitation(teamId, role, user.id, email) as { id?: string; code?: string };
+    const invitation = await createInvitation(teamId, role, user.id, email, expiresAtFor(expiresInDays)) as { id?: string; code?: string };
     revalidatePath(`/teams/${teamId}/invitations`);
     return { ok: true, id: invitation.id, url: invitation.code ? invitationUrl(invitation.code) : undefined };
   } catch (error) {

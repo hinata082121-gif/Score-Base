@@ -112,3 +112,16 @@
 - localStorage保存のゲストデータでは保存しません。
 - 保存に失敗してもCSV/PNG/共有自体は止めません。
 - 本番DBにv0.7.1 migrationが未適用の場合、関連する保存処理が失敗する可能性があります。
+- v0.7.3以降はDB保存済みGameの `/games/[id]/export` で最近の出力履歴を確認できます。
+
+## AuditLogが増えない
+
+- AuditLog保存は本体mutationを止めない設計です。DB接続や権限処理が成功しても、AuditLogだけが失敗した場合はユーザー操作を優先します。
+- v0.7.3時点の記録対象はTeam、TeamMember、Invitation、Game、ExportSnapshotの主要mutationです。
+- AuditLog一覧UIは未実装です。Supabase Table Editorで確認してください。
+
+## 招待期限が想定と違う
+
+- 招待作成時に24時間、7日、30日、無期限を選択できます。
+- 期限切れ招待は `/invite/[code]` とServer Actionの両方で受諾できません。
+- 期限切れ招待は招待一覧で無効化できます。

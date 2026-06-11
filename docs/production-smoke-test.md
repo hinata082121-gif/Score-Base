@@ -380,3 +380,81 @@ Remaining follow-up:
 - AuditLog recording/display.
 - Automated E2E smoke test for auth, DB persistence, invitations, roles, export, and localStorage migration dedupe.
 - Optional test-data cleanup UI limited to clearly named smoke-test data.
+
+## v0.7.3 Manual Production Smoke Support
+
+Date: 2026-06-11
+
+Purpose:
+
+- Make the remaining real-data Production smoke test easier to run manually.
+- Avoid recording smoke-test email addresses, passwords, connection URLs, or secrets in docs.
+- Keep schema unchanged.
+
+Implemented support:
+
+- `/settings/release-checklist` now includes a dedicated `v0.7.3 本番実データSmoke Test` section for User A, User B, Supabase Table Editor, and safety notes.
+- `/games/[id]/export` shows recent ExportSnapshot rows for the current DB-backed game when the logged-in user can view that game.
+- Team invitation creation now supports expiry options: 24 hours, 7 days, 30 days, and no expiry.
+- Invitation list and `/invite/[code]` show expiry information and block expired invitations in the UI as well as in the repository.
+- Minimal AuditLog writes were added for Team create/update/delete, TeamMember role/remove, Invitation create/accept/revoke, Game create/update/delete, and ExportSnapshot create. AuditLog failures do not block the main mutation.
+
+Manual test data naming:
+
+- Team: `SB_TEST_TEAM_YYYYMMDD`
+- Player: `SB_TEST_PLAYER_YYYYMMDD`
+- Game: `SB_TEST_GAME_YYYYMMDD`
+- Do not write User A / User B email addresses or passwords in docs, screenshots, issue comments, or final reports.
+
+User A checklist:
+
+- Register a new test user.
+- Log in.
+- Create `SB_TEST_TEAM_YYYYMMDD`.
+- Confirm TeamMember OWNER in Supabase.
+- Create `SB_TEST_PLAYER_YYYYMMDD`.
+- Create watch-only, simple, and scorebook games.
+- Confirm scorebook lineup, inning score, plate appearance, and pitch event persistence.
+- Open export, click CSV, PNG, and share/copy actions.
+- Confirm ExportSnapshot rows increase.
+- Log out, log back in, and confirm DB data remains.
+
+User B role checklist:
+
+- Register a separate test user.
+- User A creates a VIEWER invitation with an expiry.
+- User B accepts from `/invite/[code]`.
+- Confirm Invitation changes from PENDING to ACCEPTED, with `acceptedById` and `acceptedAt`.
+- Confirm User B is VIEWER and can view but cannot edit.
+- Change User B to SCORER and confirm scorebook input works but Game deletion is rejected.
+- Change User B to EDITOR and confirm team/player edit works but member management is rejected.
+- Change User B to ADMIN and confirm invitation/member management works.
+- Confirm OWNER invitation cannot be created.
+- Confirm the last OWNER cannot be removed or downgraded.
+
+Supabase Table Editor verification:
+
+- `_prisma_migrations`: contains `20260611170000_add_source_local_id`.
+- `User`: User A and User B exist.
+- `Session`: login sessions exist.
+- `Team`: `SB_TEST_TEAM_YYYYMMDD` exists and `sourceLocalId` column exists.
+- `TeamMember`: User A is OWNER; User B changes through VIEWER / SCORER / EDITOR / ADMIN.
+- `Player`: `SB_TEST_PLAYER_YYYYMMDD` exists and `sourceLocalId` column exists.
+- `Game`: `SB_TEST_GAME_YYYYMMDD` exists, `teamId` is set for team-workspace games, and `sourceLocalId` column exists.
+- `LineupEntry`, `InningScore`, `PlateAppearance`, `PitchEvent`: scorebook operations create/update rows.
+- `Invitation`: PENDING to ACCEPTED transition, `acceptedById`, `acceptedAt`, `expiresAt`; OWNER invitation is not created.
+- `ExportSnapshot`: CSV / PNG / share operations create rows.
+- `AuditLog`: implemented mutation actions create rows when AuditLog write succeeds.
+
+localStorage migration dedupe:
+
+- Create or keep local test data.
+- Back up JSON from `/settings/data`.
+- Run DB migration once and record created / skipped / failed counts.
+- Run the same migration again and confirm skipped count increases and duplicate DB records are not created.
+- Confirm localStorage is not automatically deleted.
+
+Production checks still requiring manual access:
+
+- Supabase Table Editor row counts and column existence, because this workspace does not have authenticated Supabase console access.
+- Full User A / User B real-data role test, because it creates real Production data and requires test credentials that must not be exposed in logs.

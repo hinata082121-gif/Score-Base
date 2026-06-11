@@ -1,6 +1,7 @@
 import { normalizeRole } from "@/lib/auth/permissions";
 import { PublicActionError, requireTeamRole } from "@/lib/auth/serverAuth";
 import { getPrisma } from "@/lib/db/prisma";
+import { recordAuditLog } from "@/lib/repositories/auditLogs";
 import type { TeamRole } from "@/lib/auth/permissions";
 
 export type DbTeamInput = {
@@ -53,7 +54,7 @@ export async function createTeamForUser(input: DbTeamInput, userId: string) {
     const existing = await prisma.team.findFirst({ where: { ownerId: userId, sourceLocalId: input.sourceLocalId }, include: includeTeam });
     if (existing) return existing;
   }
-  return prisma.team.create({
+  const team = await prisma.team.create({
     data: {
       ...input,
       userId,
@@ -65,18 +66,24 @@ export async function createTeamForUser(input: DbTeamInput, userId: string) {
     },
     include: includeTeam,
   });
+  await recordAuditLog({ userId, teamId: (team as { id?: string }).id, action: "CREATE", resourceType: "Team", resourceId: (team as { id?: string }).id, detail: input.name });
+  return team;
 }
 
 export async function updateTeamForUser(teamId: string, input: DbTeamInput, userId: string) {
   await requireTeamRole(teamId, userId, ["OWNER", "ADMIN", "EDITOR"]);
   const prisma = await getPrisma();
-  return prisma.team.update({ where: { id: teamId }, data: input, include: includeTeam });
+  const team = await prisma.team.update({ where: { id: teamId }, data: input, include: includeTeam });
+  await recordAuditLog({ userId, teamId, action: "UPDATE", resourceType: "Team", resourceId: teamId, detail: input.name });
+  return team;
 }
 
 export async function deleteTeamForUser(teamId: string, userId: string) {
   await requireTeamRole(teamId, userId, ["OWNER"]);
   const prisma = await getPrisma();
-  return prisma.team.delete({ where: { id: teamId } });
+  const team = await prisma.team.delete({ where: { id: teamId } });
+  await recordAuditLog({ userId, teamId, action: "DELETE", resourceType: "Team", resourceId: teamId });
+  return team;
 }
 
 export async function listTeamMembers(teamId: string, userId: string) {
@@ -94,7 +101,9 @@ export async function updateMemberRole(teamId: string, memberUserId: string, rol
     const ownerCount = await prisma.teamMember.count({ where: { teamId, role: "OWNER", status: "ACTIVE" } }) as number;
     if (ownerCount <= 1) throw new PublicActionError("最後のOWNERは変更できません。");
   }
-  return prisma.teamMember.update({ where: { teamId_userId: { teamId, userId: memberUserId } }, data: { role } });
+  const member = await prisma.teamMember.update({ where: { teamId_userId: { teamId, userId: memberUserId } }, data: { role } });
+  await recordAuditLog({ userId: actingUserId, teamId, action: "UPDATE_ROLE", resourceType: "TeamMember", resourceId: memberUserId, detail: `role=${role}` });
+  return member;
 }
 
 export async function removeTeamMember(teamId: string, memberUserId: string, actingUserId: string) {
@@ -105,7 +114,9 @@ export async function removeTeamMember(teamId: string, memberUserId: string, act
     const ownerCount = await prisma.teamMember.count({ where: { teamId, role: "OWNER", status: "ACTIVE" } }) as number;
     if (ownerCount <= 1) throw new PublicActionError("最後のOWNERは削除できません。");
   }
-  return prisma.teamMember.delete({ where: { teamId_userId: { teamId, userId: memberUserId } } });
+  const member = await prisma.teamMember.delete({ where: { teamId_userId: { teamId, userId: memberUserId } } });
+  await recordAuditLog({ userId: actingUserId, teamId, action: "REMOVE", resourceType: "TeamMember", resourceId: memberUserId });
+  return member;
 }
 
 export const getTeams = listTeamsForUser;
