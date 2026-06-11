@@ -6,6 +6,7 @@
 - mainブランチpush
 - GitHub上で最新commit確認
 - Import対象: `https://github.com/hinata082121-gif/Score-Base`
+- 本番Smoke Test結果: `docs/production-smoke-test.md`
 
 ## Vercel
 

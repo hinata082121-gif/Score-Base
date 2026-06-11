@@ -197,7 +197,7 @@ v0.5.1時点の残課題:
 
 ## 公開後チェック
 
-公開後の詳細チェックは [docs/deployment-checklist.md](docs/deployment-checklist.md) を参照してください。トラブル対応は [docs/troubleshooting.md](docs/troubleshooting.md) を参照してください。アプリ内では `/settings/deployment` で環境診断、`/settings/release-checklist` でリリース前QAを確認できます。
+公開後の詳細チェックは [docs/deployment-checklist.md](docs/deployment-checklist.md) を参照してください。本番Smoke Test結果は [docs/production-smoke-test.md](docs/production-smoke-test.md)、トラブル対応は [docs/troubleshooting.md](docs/troubleshooting.md) を参照してください。アプリ内では `/settings/deployment` で環境診断、`/settings/release-checklist` でリリース前QAを確認できます。
 
 ## 開発コマンド
 
