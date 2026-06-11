@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppHeader } from "@/components/AppHeader";
 import { BottomNav } from "@/components/BottomNav";
+import { getMetadataBase } from "@/lib/url";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,6 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: getMetadataBase(),
   title: "Score Base | 野球観戦記録・スコアブック管理アプリ",
   description: "Score Baseは、野球観戦記録、簡易スコア、詳細スコアブック、個人成績、チーム成績をまとめて管理できるWebアプリです。",
   keywords: ["Score Base", "野球観戦記録", "スコアブック", "野球スコア", "草野球", "学生野球", "試合記録", "個人成績", "チーム成績"],
@@ -22,6 +24,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Score Base | 野球観戦記録・スコアブック管理アプリ",
     description: "Score Baseは、野球観戦記録、簡易スコア、詳細スコアブック、個人成績、チーム成績をまとめて管理できるWebアプリです。",
+    url: "/",
     siteName: "Score Base",
     type: "website",
     locale: "ja_JP",

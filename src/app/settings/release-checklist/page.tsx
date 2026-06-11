@@ -3,15 +3,15 @@ import { PageShell } from "@/components/PageShell";
 const groups = [
   {
     title: "基本表示",
-    items: ["トップページが表示される", "metadata title が Score Base になっている", "manifest name が Score Base になっている", "スマホ幅でレイアウトが崩れない", "PC幅でレイアウトが崩れない"],
+    items: ["トップページが表示される", "/login が表示される", "/register が表示される", "/games/new が表示される", "/robots.txt が表示される", "/sitemap.xml が表示される", "metadata title が Score Base になっている", "manifest name が Score Base になっている", "スマホ幅でレイアウトが崩れない", "PC幅でレイアウトが崩れない"],
   },
   {
     title: "認証",
-    items: ["新規登録できる", "ログインできる", "ログアウトできる", "未ログインで保護ページに入れない", "アカウント設定を開ける"],
+    items: ["新規登録できる", "ログインできる", "ログアウトできる", "アカウント設定を開ける", "個人ワークスペースが表示される", "未ログインで保護ページに入れない"],
   },
   {
     title: "観戦記録",
-    items: ["観戦記録のみモードで作成できる", "簡易記録モードで作成できる", "詳細スコアブックモードで作成できる", "観戦記録一覧に表示される", "期間フィルターが動く", "編集できる", "複製できる", "削除できる"],
+    items: ["観戦記録のみモードで作成できる", "簡易記録モードで作成できる", "詳細スコアブックモードで作成できる", "観戦記録一覧に表示される", "期間フィルターが動く", "編集できる", "複製できる", "削除できる", "存在しないデータで404表示になる"],
   },
   {
     title: "スコアブック",
@@ -19,7 +19,7 @@ const groups = [
   },
   {
     title: "チーム/選手",
-    items: ["チーム作成できる", "チーム編集できる", "選手作成できる", "選手編集できる", "メンバー招待リンクを作成できる", "招待リンクから参加できる", "権限ごとの制御が効く"],
+    items: ["チームワークスペースを作成できる", "チーム切替ができる", "チーム作成できる", "チーム編集できる", "選手作成できる", "選手編集できる", "メンバー招待リンクを作成できる", "招待リンクから参加できる", "OWNER / ADMIN / EDITOR / SCORER / VIEWER の権限差を確認する", "VIEWERが編集・削除できない", "権限不足時に403表示になる"],
   },
   {
     title: "CSV/共有",
@@ -27,7 +27,7 @@ const groups = [
   },
   {
     title: "Vercel/DB",
-    items: ["DATABASE_URL設定済み", "AUTH_SECRET設定済み", "NEXTAUTH_URL設定済み", "Prisma migrate deploy済み", "本番DBに保存される", "Preview/ProductionのDB接続先を確認済み"],
+    items: ["DATABASE_URL設定済み", "AUTH_SECRET設定済み", "NEXTAUTH_URL設定済み", "AUTH_URL設定済み", "AUTH_TRUST_HOST設定済み", "Prisma migrate deploy済み", "本番DBに保存される", "Preview/ProductionのDB接続先を確認済み", "/settings/deployment のDB接続診断が成功する"],
   },
   {
     title: "セキュリティ",

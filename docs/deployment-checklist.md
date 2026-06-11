@@ -5,6 +5,7 @@
 - remote origin確認
 - mainブランチpush
 - GitHub上で最新commit確認
+- Import対象: `https://github.com/hinata082121-gif/Score-Base`
 
 ## Vercel
 
@@ -46,6 +47,8 @@ AUTH_TRUST_HOST="true"
 
 本番で `npx prisma migrate dev` は使いません。migration files はGitHubに含めます。Prisma datasource providerをSQLiteからPostgreSQLへ切り替える場合は、事前にmigration方針を整理します。
 
+Productionの`DATABASE_URL`を設定した後、本番PostgreSQLが作成済みであることを確認してからmigrationを適用します。SQLite開発DBとPostgreSQL本番DBでは差異が出る可能性があるため、初回Production投入前にmigration方針を確認します。
+
 ## Auth
 
 - AUTH_SECRET設定
@@ -58,18 +61,33 @@ AUTH_TRUST_HOST="true"
 ## Smoke Test
 
 - トップページ
+- アカウント設定
+- 個人ワークスペース表示
 - 新規登録
 - ログイン
 - ログアウト
+- 観戦記録のみモード作成
+- 簡易記録モード作成
 - 観戦記録作成
+- 詳細スコアブックモード作成
+- SBO入力
+- 打席結果入力
+- 走者状況調整
+- 早稲田式 / 慶應式切替
 - スコアブック入力
 - PNG保存
 - CSV出力
+- チームワークスペース作成
+- チーム切替
 - チーム作成
 - 選手作成
+- 選手編集
 - 招待リンク作成
 - 招待リンク受諾
+- OWNER / ADMIN / EDITOR / SCORER / VIEWER の権限差
+- VIEWERが編集・削除できない
 - 権限不足時の403表示
+- 存在しないデータの404表示
 - DB接続診断
 - sitemap表示
 - robots表示
@@ -80,6 +98,7 @@ AUTH_TRUST_HOST="true"
 - `/login`
 - `/register`
 - `/games`
+- `/games/new`
 - `/teams`
 - `/players`
 - `/stats/players`

@@ -1,8 +1,7 @@
 import type { MetadataRoute } from "next";
-import { publicBaseUrl } from "@/lib/deployment";
+import { buildShareUrl } from "@/lib/url";
 
 export default function robots(): MetadataRoute.Robots {
-  const sitemap = publicBaseUrl() ? `${publicBaseUrl()}/sitemap.xml` : undefined;
   return {
     rules: [
       {
@@ -11,7 +10,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/account", "/invite", "/settings/deployment", "/settings/release-checklist"],
       },
     ],
-    sitemap,
+    sitemap: buildShareUrl("/sitemap.xml"),
   };
 }
-

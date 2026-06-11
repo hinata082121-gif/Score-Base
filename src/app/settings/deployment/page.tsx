@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { deploymentEnvChecks, publicBaseUrl } from "@/lib/deployment";
 import { getPrisma } from "@/lib/db/prisma";
 import { deploymentErrorGuidance } from "@/lib/errorGuidance";
+import { buildShareUrl, sameUrlHost } from "@/lib/url";
 
 type QueryablePrisma = {
   $queryRawUnsafe?: (query: string) => Promise<unknown>;
@@ -43,6 +44,7 @@ export default async function DeploymentSettingsPage() {
   const proto = requestHeaders.get("x-forwarded-proto") ?? "http";
   const currentUrl = host ? `${proto}://${host}` : "取得できません";
   const baseUrl = publicBaseUrl();
+  const authUrlMatchesCurrentHost = currentUrl !== "取得できません" ? sameUrlHost(baseUrl, currentUrl) : true;
   const prisma = await checkPrisma();
   const checks = deploymentEnvChecks();
 
@@ -63,15 +65,23 @@ export default async function DeploymentSettingsPage() {
           <p className="mt-2 text-sm font-bold text-stone-700">結果: {prisma.status}</p>
           <p className="mt-1 text-sm leading-6 text-stone-600">{prisma.message}</p>
           {prisma.guidance ? <p className="mt-2 rounded-md bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-900">{prisma.guidance}</p> : null}
+          <p className="mt-3 text-sm font-bold leading-6 text-stone-700">本番DBのmigration状態は、ProductionのDATABASE_URLを設定した後に `npm run prisma:migrate:deploy` または `npx prisma migrate deploy` で確認・適用してください。</p>
         </section>
         <section className="grid gap-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-2">
           <div><p className="text-xs font-bold text-stone-500">NODE_ENV</p><p className="mt-1 text-sm font-bold text-stone-800">{process.env.NODE_ENV || "未設定"}</p></div>
           <div><p className="text-xs font-bold text-stone-500">VERCEL_ENV</p><p className="mt-1 text-sm font-bold text-stone-800">{process.env.VERCEL_ENV || "未設定"}</p></div>
           <div><p className="text-xs font-bold text-stone-500">VERCEL_URL</p><p className="mt-1 break-all text-sm font-bold text-stone-800">{process.env.VERCEL_URL ? "設定済み" : "未設定"}</p></div>
           <div><p className="text-xs font-bold text-stone-500">現在のアプリURL</p><p className="mt-1 break-all text-sm font-bold text-stone-800">{currentUrl}</p></div>
-          <div><p className="text-xs font-bold text-stone-500">共有URL生成時のbase URL</p><p className="mt-1 break-all text-sm font-bold text-stone-800">{baseUrl || currentUrl}</p></div>
+          <div><p className="text-xs font-bold text-stone-500">public base URL</p><p className="mt-1 break-all text-sm font-bold text-stone-800">{baseUrl}</p></div>
+          <div><p className="text-xs font-bold text-stone-500">招待リンク生成例</p><p className="mt-1 break-all text-sm font-bold text-stone-800">{buildShareUrl("/invite/example-code")}</p></div>
           <div><p className="text-xs font-bold text-stone-500">最終確認日時</p><p className="mt-1 text-sm font-bold text-stone-800">{new Date().toISOString()}</p></div>
         </section>
+        {!authUrlMatchesCurrentHost ? (
+          <section className="rounded-md border border-amber-200 bg-amber-50 p-4">
+            <h2 className="text-lg font-black text-amber-950">Auth URL確認</h2>
+            <p className="mt-2 text-sm font-bold leading-6 text-amber-900">現在のアプリURLとpublic base URLのホストが一致していません。Vercelの本番ドメインと `NEXTAUTH_URL` / `AUTH_URL` が一致しているか確認し、必要なら再デプロイしてください。</p>
+          </section>
+        ) : null}
       </div>
     </PageShell>
   );

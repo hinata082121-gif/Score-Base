@@ -1,3 +1,5 @@
+import { getPublicAppUrl } from "@/lib/url";
+
 export type DeploymentCheck = {
   key: string;
   label: string;
@@ -20,10 +22,16 @@ export function deploymentEnvChecks(): DeploymentCheck[] {
       help: "認証用の署名・暗号化に使う十分に長いランダム文字列です。",
     },
     {
-      key: "AUTH_URL",
-      label: "NEXTAUTH_URL または AUTH_URL",
-      configured: Boolean(process.env.NEXTAUTH_URL || process.env.AUTH_URL),
+      key: "NEXTAUTH_URL",
+      label: "NEXTAUTH_URL",
+      configured: Boolean(process.env.NEXTAUTH_URL),
       help: "本番URLを設定します。例: https://score-base.vercel.app",
+    },
+    {
+      key: "AUTH_URL",
+      label: "AUTH_URL",
+      configured: Boolean(process.env.AUTH_URL),
+      help: "Auth.js / NextAuthで必要な場合に本番URLを設定します。",
     },
     {
       key: "AUTH_TRUST_HOST",
@@ -35,9 +43,5 @@ export function deploymentEnvChecks(): DeploymentCheck[] {
 }
 
 export function publicBaseUrl() {
-  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
-  if (process.env.AUTH_URL) return process.env.AUTH_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "";
+  return getPublicAppUrl();
 }
-
