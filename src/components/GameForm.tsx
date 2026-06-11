@@ -290,7 +290,7 @@ export function GameForm({ mode, editId }: { mode: GameMode; editId?: string }) 
 
   return (
     <div className="space-y-5">
-      <div className="sticky top-0 z-20 -mx-4 border-b border-stone-200 bg-stone-50/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-md sm:border">
+      <div className="sticky top-16 z-20 -mx-4 border-b border-stone-200 bg-stone-50/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-md sm:border">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-bold text-emerald-700">{modeLabels[game.mode]}</p>
@@ -401,7 +401,7 @@ export function GameForm({ mode, editId }: { mode: GameMode; editId?: string }) 
             <label className={label}>コールド理由<input className={field} value={game.calledReason} onChange={(e) => patch({ calledReason: e.target.value })} /></label>
             <label className={label}>打者<input className={field} value={paDraft.batterName} onChange={(e) => setPaDraft({ ...paDraft, batterName: e.target.value })} /></label>
           </div>
-          <div className="sticky top-[78px] z-10 rounded-md border border-emerald-200 bg-emerald-50 p-3 shadow-sm">
+          <div className="sticky top-32 z-10 rounded-md border border-emerald-200 bg-emerald-50 p-3 shadow-sm">
             <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-md bg-white p-2 ring-1 ring-emerald-100">
                 <p className="text-[11px] font-bold text-stone-500">試合</p>
