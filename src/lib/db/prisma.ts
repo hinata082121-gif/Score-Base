@@ -1,4 +1,5 @@
 import { deploymentErrorGuidance } from "@/lib/errorGuidance";
+import { isPostgresDatabaseUrl, resolveDatabaseUrl } from "@/lib/db/databaseUrl";
 
 type PrismaClientLike = {
   game: Record<string, (...args: unknown[]) => Promise<unknown>>;
@@ -18,9 +19,9 @@ const globalForPrisma = globalThis as typeof globalThis & {
 };
 
 export async function getPrisma() {
-  const databaseUrl = process.env.DATABASE_URL;
+  const { url: databaseUrl } = resolveDatabaseUrl();
   if (!databaseUrl) {
-    throw new Error("DATABASE_URL が未設定です。Vercelまたは.envにDATABASE_URLを設定してください。");
+    throw new Error("DATABASE_URL が未設定です。Vercel Supabase連携でPOSTGRES_PRISMA_URLが作成されている場合は、その値をDATABASE_URLへコピーしてください。");
   }
 
   if (!globalForPrisma.scoreBasePrisma) {
@@ -36,10 +37,8 @@ export async function getPrisma() {
 }
 
 async function createPrismaAdapter(databaseUrl: string) {
-  if (databaseUrl.startsWith("file:")) {
-    const adapterModule = await import("@prisma/adapter-better-sqlite3");
-    const PrismaBetterSqlite3 = (adapterModule as unknown as { PrismaBetterSqlite3: new (options: { url: string }) => unknown }).PrismaBetterSqlite3;
-    return new PrismaBetterSqlite3({ url: databaseUrl });
+  if (!isPostgresDatabaseUrl(databaseUrl)) {
+    throw new Error("DATABASE_URL はPostgreSQL接続URLを設定してください。Vercel Supabase連携ではPOSTGRES_PRISMA_URLの値をDATABASE_URLへコピーすることを推奨します。");
   }
   const adapterModule = await import("@prisma/adapter-pg");
   const PrismaPg = (adapterModule as unknown as { PrismaPg: new (options: { connectionString: string }) => unknown }).PrismaPg;
@@ -47,7 +46,7 @@ async function createPrismaAdapter(databaseUrl: string) {
 }
 
 export function isDbConfigured() {
-  return Boolean(process.env.DATABASE_URL);
+  return Boolean(resolveDatabaseUrl().url);
 }
 
 export function dbErrorMessage(error: unknown) {

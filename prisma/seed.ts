@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
+import { isPostgresDatabaseUrl, resolveDatabaseUrl } from "../src/lib/db/databaseUrl";
 
 const samplePassword = "scorebase-demo";
 
@@ -25,7 +26,7 @@ function hashPassword(password: string) {
 }
 
 function loadLocalEnv() {
-  if (process.env.DATABASE_URL || !existsSync(".env")) return;
+  if (resolveDatabaseUrl().url || !existsSync(".env")) return;
   for (const line of readFileSync(".env", "utf8").split(/\r?\n/)) {
     const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
     if (!match || process.env[match[1]]) continue;
@@ -39,8 +40,8 @@ async function main() {
   }
 
   loadLocalEnv();
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) throw new Error("DATABASE_URL is required for seed.");
+  const { url: databaseUrl } = resolveDatabaseUrl();
+  if (!databaseUrl) throw new Error("DATABASE_URL or POSTGRES_PRISMA_URL is required for seed.");
 
   const generatedClientPath = "../src/generated/prisma/client";
   const clientModule = await import(generatedClientPath);
@@ -121,10 +122,8 @@ async function main() {
 }
 
 async function createPrismaAdapter(databaseUrl: string) {
-  if (databaseUrl.startsWith("file:")) {
-    const adapterModule = await import("@prisma/adapter-better-sqlite3");
-    const PrismaBetterSqlite3 = (adapterModule as unknown as { PrismaBetterSqlite3: new (options: { url: string }) => unknown }).PrismaBetterSqlite3;
-    return new PrismaBetterSqlite3({ url: databaseUrl });
+  if (!isPostgresDatabaseUrl(databaseUrl)) {
+    throw new Error("DATABASE_URL must be a PostgreSQL URL for seed.");
   }
   const adapterModule = await import("@prisma/adapter-pg");
   const PrismaPg = (adapterModule as unknown as { PrismaPg: new (options: { connectionString: string }) => unknown }).PrismaPg;

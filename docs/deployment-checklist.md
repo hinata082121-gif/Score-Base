@@ -19,11 +19,15 @@
 - Node.js Version: Vercel defaultで問題ないか確認
 - Prisma Client生成がbuild時に行われること
 - Environment Variables設定
+- Vercel Marketplace Supabase連携
 - Production Deploy確認
 
 ## Environment Variables
 
 - `DATABASE_URL`
+- `POSTGRES_PRISMA_URL`
+- `POSTGRES_URL`
+- `POSTGRES_URL_NON_POOLING`
 - `AUTH_SECRET`
 - `NEXTAUTH_URL`
 - `AUTH_URL`
@@ -39,16 +43,19 @@ AUTH_TRUST_HOST="true"
 
 `AUTH_SECRET`は十分に長いランダム文字列を使います。`DATABASE_URL`は本番PostgreSQLのURLを使います。`.env`の値はGitHubへpushしません。Production / Preview / Developmentで必要に応じてDBを分けます。
 
+Vercel Supabase連携では `POSTGRES_PRISMA_URL` が自動作成されます。Prisma CLIと運用確認を単純にするため、Production / Preview / Development の必要な環境で `POSTGRES_PRISMA_URL` の値を `DATABASE_URL` にコピーして明示設定します。環境変数変更後は再デプロイします。
+
 ## Database
 
 - PostgreSQL DATABASE_URL設定
+- Supabase PostgreSQLが空DBであることを確認
 - `npm run prisma:migrate:deploy` または `npx prisma migrate deploy` 実行
 - Prisma Client生成確認
 - 保存/取得テスト
 
-本番で `npx prisma migrate dev` は使いません。migration files はGitHubに含めます。Prisma datasource providerをSQLiteからPostgreSQLへ切り替える場合は、事前にmigration方針を整理します。
+本番で `npx prisma migrate dev` は使いません。migration files はGitHubに含めます。Prisma datasource providerはPostgreSQLです。
 
-Productionの`DATABASE_URL`を設定した後、本番PostgreSQLが作成済みであることを確認してからmigrationを適用します。SQLite開発DBとPostgreSQL本番DBでは差異が出る可能性があるため、初回Production投入前にmigration方針を確認します。
+Productionの`DATABASE_URL`を設定した後、本番PostgreSQLが作成済みであることを確認してからmigrationを適用します。旧SQLite migrationは `prisma/sqlite-migrations-archive` に退避済みで、active migrationは空のSupabase PostgreSQLへ適用する `20260611120000_init_postgresql` です。
 
 ## Auth
 

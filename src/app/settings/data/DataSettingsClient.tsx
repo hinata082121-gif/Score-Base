@@ -47,11 +47,11 @@ export function DataSettingsClient() {
         </section>
         <section className="rounded-md border border-amber-200 bg-amber-50 p-4">
           <h2 className="text-lg font-black text-amber-950">DB保存へ移行する前に</h2>
-          <p className="mt-2 text-sm font-bold text-amber-900">DATABASE_URLとPrisma Client生成が必要です。未設定の場合、DB保存処理はエラーになります。移行前に必ずJSONバックアップを保存してください。</p>
+          <p className="mt-2 text-sm font-bold text-amber-900">PostgreSQLのDATABASE_URLとPrisma Client生成が必要です。Vercel Supabase連携ではPOSTGRES_PRISMA_URLをDATABASE_URLへコピーしてください。移行前に必ずJSONバックアップを保存してください。</p>
         </section>
         <section className="flex flex-wrap gap-2 rounded-md border border-stone-200 bg-white p-4 shadow-sm">
           <button className="min-h-11 rounded-md bg-emerald-700 px-4 text-sm font-bold text-white" onClick={backup}>JSONバックアップ</button>
-          <button className="min-h-11 rounded-md bg-stone-100 px-4 text-sm font-bold text-stone-800" onClick={() => window.alert("DB移行ボタンは土台実装です。DATABASE_URL設定後、Server Actions経由の移行処理を接続してください。")}>DB保存へ移行</button>
+          <button className="min-h-11 rounded-md bg-stone-100 px-4 text-sm font-bold text-stone-800" onClick={() => window.alert("DB移行ボタンは土台実装です。PostgreSQLのDATABASE_URL設定後、Server Actions経由の移行処理を接続してください。")}>DB保存へ移行</button>
           <button className="min-h-11 rounded-md bg-red-50 px-4 text-sm font-bold text-red-700" onClick={clearLocalData}>localStorageデータ削除</button>
           <Link className="inline-flex min-h-11 items-center rounded-md bg-white px-4 text-sm font-bold text-stone-800 ring-1 ring-stone-300" href="/settings">設定へ戻る</Link>
         </section>

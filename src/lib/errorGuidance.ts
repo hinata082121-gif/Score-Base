@@ -1,6 +1,6 @@
 export function deploymentErrorGuidance(message: string) {
   if (message.includes("DATABASE_URL")) {
-    return "VercelのEnvironment VariablesにDATABASE_URLが設定されているか確認してください。";
+    return "VercelのEnvironment VariablesにDATABASE_URLが設定されているか確認してください。Supabase連携でPOSTGRES_PRISMA_URLが作成されている場合は、その値をDATABASE_URLへコピーして再デプロイします。";
   }
   if (message.includes("AUTH_SECRET")) {
     return "AUTH_SECRETに十分長いランダム文字列を設定し、再デプロイしてください。";
@@ -9,7 +9,7 @@ export function deploymentErrorGuidance(message: string) {
     return "本番URLとNEXTAUTH_URL / AUTH_URLが一致しているか確認してください。";
   }
   if (message.includes("Prisma") || message.includes("database") || message.includes("DB")) {
-    return "DATABASE_URL、Prisma Client生成、migration適用状況を確認してください。";
+    return "DATABASE_URL、Prisma Client生成、PostgreSQL migration適用状況を確認してください。Supabase連携時はPOSTGRES_PRISMA_URLをDATABASE_URLへ設定します。";
   }
   if (message.includes("招待")) {
     return "招待リンクが無効化済み、期限切れ、またはチーム削除済みでないか確認してください。";

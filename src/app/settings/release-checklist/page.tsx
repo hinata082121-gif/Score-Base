@@ -27,7 +27,7 @@ const groups = [
   },
   {
     title: "Vercel/DB",
-    items: ["DATABASE_URL設定済み", "AUTH_SECRET設定済み", "NEXTAUTH_URL設定済み", "AUTH_URL設定済み", "AUTH_TRUST_HOST設定済み", "Prisma migrate deploy済み", "本番DBに保存される", "Preview/ProductionのDB接続先を確認済み", "/settings/deployment のDB接続診断が成功する"],
+    items: ["Supabase PostgreSQL連携済み", "POSTGRES_PRISMA_URLをDATABASE_URLへコピー済み", "AUTH_SECRET設定済み", "NEXTAUTH_URL設定済み", "AUTH_URL設定済み", "AUTH_TRUST_HOST設定済み", "Prisma migrate deploy済み", "本番DBに保存される", "Preview/ProductionのDB接続先を確認済み", "/settings/deployment のDB接続診断が成功する"],
   },
   {
     title: "セキュリティ",

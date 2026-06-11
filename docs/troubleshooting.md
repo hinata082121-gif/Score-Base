@@ -9,15 +9,24 @@
 ## DATABASE_URL is not set
 
 - Vercel Project Settings > Environment Variablesで `DATABASE_URL` を設定します。
+- Vercel Supabase連携で `POSTGRES_PRISMA_URL` がある場合は、その値を `DATABASE_URL` にコピーします。
 - Production / Preview / Development のどの環境に設定したか確認します。
 - 設定後に再デプロイします。
 
 ## Prisma connection failed
 
 - `DATABASE_URL` の接続先を確認します。
+- Supabase連携では `DATABASE_URL` が `postgresql://` または `postgres://` で始まるPostgreSQL URLか確認します。
 - PostgreSQLのSSL設定を確認します。
 - `npm run prisma:migrate:deploy` または `npx prisma migrate deploy` が完了しているか確認します。
 - `/settings/deployment` のPrisma接続診断を確認します。
+
+## Prisma migrate deploy fails on Supabase
+
+- Supabase PostgreSQLが空DBか、既存schemaとmigration履歴が一致しているか確認します。
+- active migrationはPostgreSQL用の `prisma/migrations/20260611120000_init_postgresql` です。
+- 旧SQLite migrationはPostgreSQL非互換のため `prisma/sqlite-migrations-archive` に退避しています。
+- 既存データがある場合は、migration適用前にdump/restoreまたは手動移行計画を作成します。
 
 ## Auth URL mismatch
 

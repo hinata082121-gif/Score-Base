@@ -3,6 +3,7 @@ import { AccessStateCard } from "@/components/AccessStateCard";
 import { PageShell } from "@/components/PageShell";
 import { getCurrentUser } from "@/lib/auth/session";
 import { deploymentEnvChecks, publicBaseUrl } from "@/lib/deployment";
+import { databaseUrlSourceLabel, resolveDatabaseUrl } from "@/lib/db/databaseUrl";
 import { getPrisma } from "@/lib/db/prisma";
 import { deploymentErrorGuidance } from "@/lib/errorGuidance";
 import { buildShareUrl, sameUrlHost } from "@/lib/url";
@@ -12,20 +13,22 @@ type QueryablePrisma = {
 };
 
 async function checkPrisma() {
-  if (!process.env.DATABASE_URL) {
+  const databaseUrl = resolveDatabaseUrl();
+  if (!databaseUrl.url) {
     return {
       status: "未実行",
-      message: "DATABASE_URLが未設定のため接続チェックをスキップしました。",
+      message: "DATABASE_URLまたはVercel SupabaseのPostgreSQL URLが未設定のため接続チェックをスキップしました。",
       guidance: deploymentErrorGuidance("DATABASE_URL"),
+      source: databaseUrlSourceLabel(databaseUrl.source),
     };
   }
   try {
     const prisma = await getPrisma() as QueryablePrisma;
     if (prisma.$queryRawUnsafe) await prisma.$queryRawUnsafe("SELECT 1");
-    return { status: "成功", message: "Prisma接続を確認しました。", guidance: "" };
+    return { status: "成功", message: "Prisma接続を確認しました。", guidance: "", source: databaseUrlSourceLabel(databaseUrl.source) };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Prisma接続に失敗しました。";
-    return { status: "失敗", message, guidance: deploymentErrorGuidance(message) };
+    return { status: "失敗", message, guidance: deploymentErrorGuidance(message), source: databaseUrlSourceLabel(databaseUrl.source) };
   }
 }
 
@@ -62,10 +65,12 @@ export default async function DeploymentSettingsPage() {
         </section>
         <section className="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
           <h2 className="text-lg font-black text-stone-950">Prisma接続</h2>
+          <p className="mt-2 text-sm font-bold text-stone-700">想定DB: PostgreSQL / Supabase</p>
+          <p className="mt-1 text-sm font-bold text-stone-700">接続元: {prisma.source}</p>
           <p className="mt-2 text-sm font-bold text-stone-700">結果: {prisma.status}</p>
           <p className="mt-1 text-sm leading-6 text-stone-600">{prisma.message}</p>
           {prisma.guidance ? <p className="mt-2 rounded-md bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-900">{prisma.guidance}</p> : null}
-          <p className="mt-3 text-sm font-bold leading-6 text-stone-700">本番DBのmigration状態は、ProductionのDATABASE_URLを設定した後に `npm run prisma:migrate:deploy` または `npx prisma migrate deploy` で確認・適用してください。</p>
+          <p className="mt-3 text-sm font-bold leading-6 text-stone-700">本番DBのmigration状態は、ProductionのDATABASE_URLへPOSTGRES_PRISMA_URLを設定した後に `npm run prisma:migrate:deploy` または `npx prisma migrate deploy` で確認・適用してください。</p>
         </section>
         <section className="grid gap-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-2">
           <div><p className="text-xs font-bold text-stone-500">NODE_ENV</p><p className="mt-1 text-sm font-bold text-stone-800">{process.env.NODE_ENV || "未設定"}</p></div>

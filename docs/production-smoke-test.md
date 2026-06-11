@@ -49,6 +49,7 @@ https://score-base.vercel.app
 `/settings/deployment` showed:
 
 - `DATABASE_URL`: 未設定
+- Supabase PostgreSQL fallback variables: not checked in this smoke test
 - `AUTH_SECRET`: 未設定
 - `NEXTAUTH_URL`: 設定済み
 - `AUTH_URL`: 設定済み
@@ -56,13 +57,13 @@ https://score-base.vercel.app
 - Prisma connection: 未実行 because `DATABASE_URL` is not set
 - Auth URL mismatch warning: not shown
 
-Do not paste secret values into this document. Set missing values in Vercel Project Settings > Environment Variables, then redeploy.
+Do not paste secret values into this document. Set missing values in Vercel Project Settings > Environment Variables, then redeploy. With Vercel Supabase integration, copy `POSTGRES_PRISMA_URL` into `DATABASE_URL` for Production and any Preview/Development environments that need database access.
 
 ## Migration Deploy
 
 Production migration deploy was not executed from this workspace because the production `DATABASE_URL` value is not available locally and was not set in the observed Vercel runtime.
 
-After setting the production PostgreSQL `DATABASE_URL`, run:
+After setting the production PostgreSQL `DATABASE_URL`, confirm the Supabase PostgreSQL database is empty or intentionally prepared for the current migration history, then run:
 
 ```powershell
 npm run prisma:migrate:deploy
@@ -76,6 +77,8 @@ npx prisma migrate deploy
 
 Do not run `npx prisma migrate dev` against production.
 
+The active migration is PostgreSQL-only: `prisma/migrations/20260611120000_init_postgresql`. Old SQLite migrations are archived under `prisma/sqlite-migrations-archive` and should not be deployed to Supabase.
+
 ## Fixed During Smoke Test
 
 - The game form sticky save bar overlapped with the global app header. Clicking save could hit the account-settings header link instead of the save button.
@@ -83,7 +86,7 @@ Do not run `npx prisma migrate dev` against production.
 
 ## Remaining Follow-Up
 
-- Set production `DATABASE_URL` in Vercel.
+- Set production `DATABASE_URL` in Vercel by copying `POSTGRES_PRISMA_URL`.
 - Set production `AUTH_SECRET` in Vercel.
 - Redeploy after environment variable changes.
 - Run production migration deploy.
