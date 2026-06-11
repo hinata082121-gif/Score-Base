@@ -6,17 +6,29 @@ import { PageShell } from "@/components/PageShell";
 import { loadGames } from "@/lib/storage";
 import { loadPlayers, loadTeam, PlayerMaster, TeamMaster } from "@/lib/masterStorage";
 
-export function TeamDetailClient({ id }: { id: string }) {
-  const [team, setTeam] = useState<TeamMaster | null>(null);
+type DbTeamDetail = TeamMaster & {
+  storage: "DB";
+  players: PlayerMaster[];
+  gameCount: number;
+};
+
+export function TeamDetailClient({ id, initialTeam }: { id: string; initialTeam?: DbTeamDetail | null }) {
+  const [team, setTeam] = useState<(TeamMaster & { storage?: "DB" | "LOCAL" }) | null>(initialTeam ?? null);
   const [players, setPlayers] = useState<PlayerMaster[]>([]);
   const [gameCount, setGameCount] = useState(0);
 
   useEffect(() => {
+    if (initialTeam) {
+      setTeam(initialTeam);
+      setPlayers(initialTeam.players);
+      setGameCount(initialTeam.gameCount);
+      return;
+    }
     const current = loadTeam(id) ?? null;
-    setTeam(current);
+    setTeam(current ? { ...current, storage: "LOCAL" } : null);
     setPlayers(loadPlayers().filter((player) => player.teamId === id));
     setGameCount(current ? loadGames().filter((game) => game.homeTeamName === current.name || game.awayTeamName === current.name).length : 0);
-  }, [id]);
+  }, [id, initialTeam]);
 
   if (!team) return <PageShell title="チームが見つかりません"><Link className="rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white" href="/teams">チーム一覧へ</Link></PageShell>;
 
@@ -25,6 +37,7 @@ export function TeamDetailClient({ id }: { id: string }) {
       <div className="space-y-4">
         <section className="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-stone-700">{team.memo || "メモはありません。"}</p>
+          <p className="mt-3 text-xs font-bold text-stone-500">{team.storage === "DB" ? "DB保存チーム" : "ローカル保存チーム"}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link className="rounded-md bg-stone-900 px-4 py-3 text-sm font-bold text-white" href={`/teams/${id}/edit`}>編集</Link>
             <Link className="rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white" href={`/players/new?teamId=${id}`}>選手追加</Link>

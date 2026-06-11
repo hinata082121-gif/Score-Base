@@ -13,7 +13,7 @@ export type DbTeamInput = {
   sourceLocalId?: string;
 };
 
-const includeTeam = { players: true, members: true, homeGames: true, awayGames: true };
+const includeTeam = { players: true, members: true, homeGames: true, awayGames: true, teamGames: true };
 
 export async function listTeamsForUser(userId: string) {
   const prisma = await getPrisma();

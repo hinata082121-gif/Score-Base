@@ -322,3 +322,61 @@ Not performed from this workspace:
 
 - Supabase Table Editor row verification, because it requires authenticated Supabase console access.
 - Full multi-user Production smoke test, because it requires multiple real test accounts and deliberate DB mutations.
+
+## v0.7.2 Production DB-backed Smoke Check
+
+Date: 2026-06-11
+
+Baseline:
+
+- Latest requested production baseline commit: `849536c feat: add db-backed team invitations and migration dedupe`.
+- User-side production migration result: `20260611170000_add_source_local_id` applied successfully, with `All migrations have been successfully applied`.
+- The production app was checked at `https://score-base.vercel.app` without recording secrets, test emails, passwords, or connection URLs.
+
+Production pages checked:
+
+- `/`: OK, metadata title is `Score Base | 野球観戦記録・スコアブック管理アプリ`.
+- `/settings/deployment`: OK, Prisma connection and required table diagnostics are visible as successful.
+- `/settings/data`: OK, localStorage to DB migration UI is visible.
+- `/settings/release-checklist`: OK, v0.7.1 text including `sourceLocalId` and `ExportSnapshot` is present, confirming commit `849536c` or later is reflected.
+- `/teams`, `/games`, `/players`, `/login`, `/register`, `/stats/players`, `/stats/teams`, `/settings`: OK.
+
+Console / hydration:
+
+- Browser checks on the pages above showed `console.error` / `console.warn` count: 0.
+- React hydration error #418 was not observed during this page sweep.
+
+Local verification after v0.7.2 fixes:
+
+- `npm run build`: passed with a non-secret placeholder PostgreSQL `DATABASE_URL`.
+- `npm run lint`: passed.
+- `npx prisma validate`: passed.
+- `npm audit`: 5 moderate findings remain; the available fixes require `npm audit fix --force`, which is prohibited because it would introduce breaking Next.js / Prisma changes.
+- `npx prisma migrate status`: not run from this workspace because safe production `DATABASE_URL` access is not available and secret values must not be printed or copied into logs.
+
+Fixes made during v0.7.2:
+
+- DB-backed team detail pages now receive server-loaded team/player data, so accepted invite members can open `/teams/[id]` without relying on localStorage.
+- New DB-backed games created while the app is in a team workspace now persist `teamId`; SCORER or higher can create/update team scorebook records.
+- Game deletion now uses delete permission separately from scorebook edit permission: owner or ADMIN+ can delete, while SCORER can still input scorebook records.
+- Server-side invitation creation and acceptance now reject `OWNER` invitations.
+
+Supabase Table Editor:
+
+- Not verified by this workspace because it requires authenticated Supabase console access.
+- Tables to confirm manually remain: `User`, `Session`, `Team`, `TeamMember`, `Player`, `Game`, `LineupEntry`, `InningScore`, `PlateAppearance`, `PitchEvent`, `Invitation`, `ExportSnapshot`, and `_prisma_migrations`.
+- Confirm `_prisma_migrations` contains `20260611170000_add_source_local_id`, and `Game`, `Team`, `Player` contain `sourceLocalId`.
+
+Real-data smoke test status:
+
+- Production page and diagnostics sweep passed.
+- Full two-user role test and Supabase row-count verification were not completed from this workspace because Supabase console access and real test-account credentials must not be exposed in docs or logs.
+- After this commit is deployed, complete the manual User A / User B scenario in `docs/roles-and-permissions.md`.
+
+Remaining follow-up:
+
+- ExportSnapshot list UI.
+- Invitation `expiresAt` UI.
+- AuditLog recording/display.
+- Automated E2E smoke test for auth, DB persistence, invitations, roles, export, and localStorage migration dedupe.
+- Optional test-data cleanup UI limited to clearly named smoke-test data.

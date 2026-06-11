@@ -11,6 +11,7 @@ function code() {
 
 export async function createInvitation(teamId: string, role: TeamRole, userId: string, email?: string) {
   await requireTeamRole(teamId, userId, ["OWNER", "ADMIN"]);
+  if (role === "OWNER") throw new PublicActionError("OWNER招待は作成できません。");
   const prisma = await getPrisma();
   return prisma.invitation.create({
     data: { teamId, role, email, createdById: userId, code: code(), status: "PENDING" },
@@ -32,6 +33,7 @@ export async function acceptInvitation(codeValue: string, userId: string) {
   const prisma = await getPrisma();
   const invitation = await prisma.invitation.findUnique({ where: { code: codeValue } }) as InvitationRow | null;
   if (!invitation || invitation.status !== "PENDING") throw new PublicActionError("招待リンクが無効です。");
+  if (invitation.role === "OWNER") throw new PublicActionError("OWNER招待は受諾できません。");
   if (invitation.expiresAt && invitation.expiresAt < new Date()) throw new PublicActionError("招待リンクの期限が切れています。");
   await prisma.teamMember.upsert({
     where: { teamId_userId: { teamId: invitation.teamId, userId } },

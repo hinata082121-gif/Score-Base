@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Save, Trash2 } from "lucide-react";
 import { useTransition } from "react";
 import { createGameAction, updateGameAction } from "@/app/actions/games";
 import { RunnerDiamond } from "./RunnerDiamond";
+import { loadWorkspaceContext } from "@/lib/auth/clientAuth";
 import {
   battedBallTypes,
   courses,
@@ -156,7 +157,14 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false }: { mod
   }
 
   function submit() {
-    const normalized = { ...game, homeTeamName: game.homeTeamName || "ホーム", awayTeamName: game.awayTeamName || "ビジター", updatedAt: new Date().toISOString() };
+    const workspace = dbEnabled && !editId ? loadWorkspaceContext() : null;
+    const normalized = {
+      ...game,
+      teamId: workspace?.type === "team" ? workspace.teamId : game.teamId,
+      homeTeamName: game.homeTeamName || "ホーム",
+      awayTeamName: game.awayTeamName || "ビジター",
+      updatedAt: new Date().toISOString(),
+    };
     if (dbEnabled) {
       const formData = new FormData();
       formData.set("payloadJson", JSON.stringify(normalized));

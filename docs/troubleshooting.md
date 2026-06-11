@@ -61,6 +61,7 @@
 - base URL生成ロジックが `NEXTAUTH_URL`、`AUTH_URL`、`VERCEL_URL` の順で本番URLを解決できているか確認します。
 - 招待コードの期限・状態を確認します。
 - 招待を作成したチームが削除されていないか確認します。
+- v0.7.2以降、OWNER招待はServer Action側で拒否します。招待ロールはVIEWER / SCORER / EDITOR / ADMINにしてください。
 
 ## PNG保存できない
 
@@ -101,6 +102,8 @@
 - チーム編集はOWNER / ADMIN / EDITOR、チーム削除はOWNERのみです。
 - 選手作成・編集はowner本人、またはチームのOWNER / ADMIN / EDITORのみです。
 - スコアブック入力はowner本人、またはチームのSCORER以上を想定します。
+- チーム試合の削除はowner本人、またはチームのADMIN以上です。SCORERはスコア入力できますが削除はできません。
+- チームワークスペースで作成したDB保存済みGameに `teamId` が入っているか確認します。
 - UIボタンの表示だけでなく、Server Action内でも認証・認可を検証します。
 
 ## ExportSnapshotが保存されない

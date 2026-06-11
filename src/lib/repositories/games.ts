@@ -1,6 +1,6 @@
 import { defaultInnings } from "@/lib/constants";
-import { canEditGame, canViewGame } from "@/lib/auth/permissions";
-import { getMembership, PublicActionError } from "@/lib/auth/serverAuth";
+import { canDeleteGame, canEditGame, canViewGame } from "@/lib/auth/permissions";
+import { getMembership, PublicActionError, requireTeamRole } from "@/lib/auth/serverAuth";
 import { getPrisma } from "@/lib/db/prisma";
 import type { InningScore, PitchEvent, PlayerInput, PlateAppearance, ScoreBaseGame } from "@/lib/types";
 
@@ -31,6 +31,7 @@ export function dbGameToScoreBaseGame(game: DbGame): ScoreBaseGame {
   const plateAppearances = (game.plateAppearances ?? []) as DbGame[];
   return {
     id: game.id,
+    teamId: text(game.teamId),
     mode: game.mode,
     gameDate: dateText(game.gameDate),
     venue: text(game.venue),
@@ -140,12 +141,18 @@ async function assertCanEdit(game: DbGame | null, userId: string) {
   return game;
 }
 
-function baseGameData(input: ScoreBaseGame, userId: string) {
+async function assertCanDelete(game: DbGame | null, userId: string) {
+  if (!game) throw new PublicActionError("記録が見つかりません。");
+  const teamRole = await teamRoleForGame(game, userId);
+  if (!canDeleteGame({ ownerId: game.ownerId, currentUserId: userId, teamRole })) {
+    throw new PublicActionError("この記録を削除する権限がありません。");
+  }
+  return game;
+}
+
+function baseGameData(input: ScoreBaseGame) {
   return {
-    userId,
-    ownerId: userId,
-    createdById: userId,
-    updatedById: userId,
+    teamId: input.teamId || null,
     mode: input.mode,
     gameDate: toDate(input.gameDate),
     venue: input.venue,
@@ -258,12 +265,16 @@ export async function getGameByIdForUser(id: string, userId: string) {
 
 export async function createGameForUser(input: ScoreBaseGame, userId: string) {
   const prisma = await getPrisma();
+  if (input.teamId) await requireTeamRole(input.teamId, userId, ["OWNER", "ADMIN", "EDITOR", "SCORER"]);
   if (input.sourceLocalId) {
-    const existing = await prisma.game.findFirst({ where: { ownerId: userId, sourceLocalId: input.sourceLocalId }, include: includeGame }) as DbGame | null;
+    const existing = await prisma.game.findFirst({
+      where: input.teamId ? { teamId: input.teamId, sourceLocalId: input.sourceLocalId } : { ownerId: userId, sourceLocalId: input.sourceLocalId },
+      include: includeGame,
+    }) as DbGame | null;
     if (existing) return dbGameToScoreBaseGame(existing);
   }
   const row = await prisma.game.create({
-    data: { ...baseGameData(input, userId), ...nestedGameData(input) },
+    data: { userId, ownerId: userId, createdById: userId, updatedById: userId, ...baseGameData(input), ...nestedGameData(input) },
     include: includeGame,
   }) as DbGame;
   return dbGameToScoreBaseGame(row);
@@ -271,11 +282,13 @@ export async function createGameForUser(input: ScoreBaseGame, userId: string) {
 
 export async function updateGameForUser(id: string, input: ScoreBaseGame, userId: string) {
   const prisma = await getPrisma();
-  await assertCanEdit(await prisma.game.findUnique({ where: { id } }) as DbGame | null, userId);
+  const current = await assertCanEdit(await prisma.game.findUnique({ where: { id } }) as DbGame | null, userId);
+  if (input.teamId && input.teamId !== current.teamId) await requireTeamRole(input.teamId, userId, ["OWNER", "ADMIN", "EDITOR", "SCORER"]);
   const row = await prisma.game.update({
     where: { id },
     data: {
-      ...baseGameData(input, userId),
+      ...baseGameData(input),
+      updatedById: userId,
       createdById: undefined,
       lineups: { deleteMany: {}, ...nestedGameData(input).lineups },
       inningScores: { deleteMany: {}, ...nestedGameData(input).inningScores },
@@ -289,7 +302,7 @@ export async function updateGameForUser(id: string, input: ScoreBaseGame, userId
 
 export async function deleteGameForUser(id: string, userId: string) {
   const prisma = await getPrisma();
-  await assertCanEdit(await prisma.game.findUnique({ where: { id } }) as DbGame | null, userId);
+  await assertCanDelete(await prisma.game.findUnique({ where: { id } }) as DbGame | null, userId);
   return prisma.game.delete({ where: { id } });
 }
 
