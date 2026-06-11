@@ -232,3 +232,10 @@ Local command results after the fix:
 - `npx prisma validate`: passed with a non-secret placeholder PostgreSQL `DATABASE_URL`.
 - `npx prisma migrate status`: not run against production because the production Supabase connection string is not available locally.
 - `npm audit`: 5 moderate findings remain; available forced fixes would introduce breaking Next.js/Prisma changes and should be handled in a separate dependency-upgrade branch.
+
+Production verification after deploy:
+
+- `/settings/deployment`: `AUTH_SECRET` configured, Prisma connection success, required table diagnostic success, Auth URL mismatch warning not shown.
+- `/games`: console errors/warnings were not observed.
+- `/games/[id]/scorebook`: console errors/warnings were not observed during the production navigation check.
+- `/games/[id]/export`: console errors/warnings were not observed.
