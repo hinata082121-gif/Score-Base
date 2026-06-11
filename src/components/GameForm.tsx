@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Save, Trash2 } from "lucide-react";
+import { useTransition } from "react";
+import { createGameAction, updateGameAction } from "@/app/actions/games";
 import { RunnerDiamond } from "./RunnerDiamond";
 import {
   battedBallTypes,
@@ -88,11 +90,13 @@ function scorebookSideLabel(topBottom: "TOP" | "BOTTOM") {
   return topBottom === "TOP" ? "表" : "裏";
 }
 
-export function GameForm({ mode, editId }: { mode: GameMode; editId?: string }) {
+export function GameForm({ mode, editId, initialGame, dbEnabled = false }: { mode: GameMode; editId?: string; initialGame?: ScoreBaseGame | null; dbEnabled?: boolean }) {
   const router = useRouter();
-  const [game, setGame] = useState<ScoreBaseGame>(() => emptyGame(mode));
-  const [savedLabel, setSavedLabel] = useState("未保存");
+  const [game, setGame] = useState<ScoreBaseGame>(() => initialGame ?? emptyGame(mode));
+  const [savedLabel, setSavedLabel] = useState(dbEnabled ? "DB未保存" : "未保存");
   const [history, setHistory] = useState<ScoreBaseGame[]>([]);
+  const [error, setError] = useState("");
+  const [isPending, startTransition] = useTransition();
   const [paDraft, setPaDraft] = useState<PlateAppearanceDraft>({
     inning: 1,
     topBottom: "TOP",
@@ -121,19 +125,24 @@ export function GameForm({ mode, editId }: { mode: GameMode; editId?: string }) 
   const nextUndoAction: UndoAction = draftPitches.length > 0 ? "投球を取り消し" : "打席確定を取り消し";
 
   useEffect(() => {
+    if (initialGame) {
+      setGame(initialGame);
+      return;
+    }
     if (!editId) return;
     const existing = loadGame(editId);
     if (existing) setGame(existing);
-  }, [editId]);
+  }, [editId, initialGame]);
 
   useEffect(() => {
+    if (dbEnabled) return;
     const key = `score-base:draft:${editId ?? mode}`;
     const timer = window.setTimeout(() => {
       localStorage.setItem(key, JSON.stringify(game));
       setSavedLabel("下書き自動保存済み");
     }, 700);
     return () => window.clearTimeout(timer);
-  }, [game, editId, mode]);
+  }, [game, editId, mode, dbEnabled]);
 
   function patch(patchValue: Partial<ScoreBaseGame>) {
     setGame((current) => ({ ...current, ...patchValue, updatedAt: new Date().toISOString() }));
@@ -148,6 +157,23 @@ export function GameForm({ mode, editId }: { mode: GameMode; editId?: string }) 
 
   function submit() {
     const normalized = { ...game, homeTeamName: game.homeTeamName || "ホーム", awayTeamName: game.awayTeamName || "ビジター", updatedAt: new Date().toISOString() };
+    if (dbEnabled) {
+      const formData = new FormData();
+      formData.set("payloadJson", JSON.stringify(normalized));
+      startTransition(async () => {
+        setError("");
+        const result = editId ? await updateGameAction(editId, formData) : await createGameAction(formData);
+        if (!result.ok) {
+          setError(result.error);
+          setSavedLabel("DB保存失敗");
+          return;
+        }
+        setSavedLabel("DB保存済み");
+        router.push(`/games/${result.id ?? normalized.id}`);
+        router.refresh();
+      });
+      return;
+    }
     upsertGame(normalized);
     setSavedLabel("保存済み");
     router.push(`/games/${normalized.id}`);
@@ -294,7 +320,7 @@ export function GameForm({ mode, editId }: { mode: GameMode; editId?: string }) 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-bold text-emerald-700">{modeLabels[game.mode]}</p>
-            <p className="text-sm font-bold text-stone-700">保存状態: {savedLabel}</p>
+            <p className="text-sm font-bold text-stone-700">保存状態: {savedLabel} / {dbEnabled ? "DB保存" : "ローカル保存"}</p>
           </div>
           <div className="flex gap-2">
             {game.mode === "SCOREBOOK" ? (
@@ -302,11 +328,12 @@ export function GameForm({ mode, editId }: { mode: GameMode; editId?: string }) 
                 <ArrowLeft className="h-4 w-4" /> 戻す
               </button>
             ) : null}
-            <button type="button" onClick={submit} className={`${btn} bg-emerald-700 text-white`}>
+            <button type="button" disabled={isPending} onClick={submit} className={`${btn} bg-emerald-700 text-white disabled:opacity-50`}>
               <Save className="h-4 w-4" /> 保存
             </button>
           </div>
         </div>
+        {error ? <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p> : null}
       </div>
 
       <section className="grid gap-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-2">

@@ -2,9 +2,13 @@ import { deploymentErrorGuidance, publicOperationalErrorMessage } from "@/lib/er
 import { isPostgresDatabaseUrl, resolveDatabaseUrl } from "@/lib/db/databaseUrl";
 
 type PrismaClientLike = {
+  [model: string]: unknown;
   game: Record<string, (...args: unknown[]) => Promise<unknown>>;
   team: Record<string, (...args: unknown[]) => Promise<unknown>>;
   player: Record<string, (...args: unknown[]) => Promise<unknown>>;
+  teamMember: Record<string, (...args: unknown[]) => Promise<unknown>>;
+  invitation: Record<string, (...args: unknown[]) => Promise<unknown>>;
+  user: Record<string, (...args: unknown[]) => Promise<unknown>>;
   plateAppearance: Record<string, (...args: unknown[]) => Promise<unknown>>;
   exportSnapshot: Record<string, (...args: unknown[]) => Promise<unknown>>;
   $transaction?: <T>(operations: Promise<T>[]) => Promise<T[]>;

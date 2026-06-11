@@ -7,14 +7,15 @@ import { loadGames } from "@/lib/storage";
 import { teamStats } from "@/lib/stats";
 import type { ScoreBaseGame } from "@/lib/types";
 
-export function TeamsStatsClient() {
-  const [games, setGames] = useState<ScoreBaseGame[]>([]);
-  useEffect(() => setGames(loadGames()), []);
+export function TeamsStatsClient({ dbGames, dbEnabled }: { dbGames: ScoreBaseGame[]; dbEnabled: boolean }) {
+  const [games, setGames] = useState<ScoreBaseGame[]>(dbGames);
+  useEffect(() => setGames([...dbGames, ...loadGames()]), [dbGames]);
   const rows = teamStats(games);
 
   return (
     <PageShell title="チーム成績" lead="保存済み試合からチームごとの勝敗、得点、打撃指標を集計します。">
       <div className="space-y-5">
+        <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900">{dbEnabled ? "DB保存済みデータとローカル保存データを集計しています。" : "ローカル保存データを集計しています。"}</p>
         <SaveImageButton targetId="teams-output" filename="score-base-teams.png" />
         <section id="teams-output" className="overflow-x-auto rounded-md border border-stone-200 bg-white p-4 shadow-sm">
           <h2 className="text-xl font-black text-stone-950">チーム成績カード</h2>

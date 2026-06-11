@@ -85,3 +85,19 @@
 - `npm audit fix` で互換範囲の修正ができるか確認します。
 - `npm audit fix --force` はNext.js / Prismaの破壊的更新またはダウングレードを伴うため使いません。
 - Next.js / Prismaの互換修正版が出た時点で別ブランチで検証します。
+
+## DB保存へ移行できない
+
+- ログイン済みであることを確認します。未ログイン時はゲストモードとしてlocalStorage保存になります。
+- `/settings/deployment` でPrisma接続と必須テーブル診断が成功しているか確認します。
+- `/settings/data` でJSONバックアップを保存してから「DB保存へ移行」を実行します。
+- v0.7.0ではsourceLocalIdカラムを追加していないため、同じlocalStorageデータを複数回移行すると重複する可能性があります。
+- 移行後もlocalStorageは自動削除されません。DB側を確認してから、必要に応じてユーザー操作で削除します。
+
+## 権限エラーになる
+
+- TeamMember roleを確認します。
+- チーム編集はOWNER / ADMIN / EDITOR、チーム削除はOWNERのみです。
+- 選手作成・編集はowner本人、またはチームのOWNER / ADMIN / EDITORのみです。
+- スコアブック入力はowner本人、またはチームのSCORER以上を想定します。
+- UIボタンの表示だけでなく、Server Action内でも認証・認可を検証します。

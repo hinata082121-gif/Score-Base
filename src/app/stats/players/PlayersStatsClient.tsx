@@ -7,15 +7,16 @@ import { loadGames } from "@/lib/storage";
 import { pitcherStats, playerStats } from "@/lib/stats";
 import type { ScoreBaseGame } from "@/lib/types";
 
-export function PlayersStatsClient() {
-  const [games, setGames] = useState<ScoreBaseGame[]>([]);
-  useEffect(() => setGames(loadGames()), []);
+export function PlayersStatsClient({ dbGames, dbEnabled }: { dbGames: ScoreBaseGame[]; dbEnabled: boolean }) {
+  const [games, setGames] = useState<ScoreBaseGame[]>(dbGames);
+  useEffect(() => setGames([...dbGames, ...loadGames()]), [dbGames]);
   const batters = playerStats(games);
   const pitchers = pitcherStats(games);
 
   return (
     <PageShell title="個人成績" lead="詳細記録・簡易記録から、MVP向けの打者/投手成績を集計します。">
       <div className="space-y-5">
+        <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900">{dbEnabled ? "DB保存済みデータとローカル保存データを集計しています。" : "ローカル保存データを集計しています。"}</p>
         <SaveImageButton targetId="players-output" filename="score-base-players.png" />
         <section id="players-output" className="overflow-x-auto rounded-md border border-stone-200 bg-white p-4 shadow-sm">
           <h2 className="text-xl font-black text-stone-950">打者成績</h2>

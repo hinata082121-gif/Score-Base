@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { deleteGameAction, duplicateGameAction } from "@/app/actions/games";
 import { CsvDownloadButton } from "@/components/CsvButtons";
 import { PageShell } from "@/components/PageShell";
 import { ShareButton } from "@/components/ShareButton";
@@ -12,13 +13,16 @@ import { deleteGame, duplicateLocalGame, loadGame } from "@/lib/storage";
 import { scoreFor } from "@/lib/stats";
 import type { ScoreBaseGame } from "@/lib/types";
 
-export function GameDetailClient({ id }: { id: string }) {
+export function GameDetailClient({ id, initialGame, dbEnabled = false }: { id: string; initialGame?: ScoreBaseGame | null; dbEnabled?: boolean }) {
   const router = useRouter();
-  const [game, setGame] = useState<ScoreBaseGame | null>(null);
+  const [game, setGame] = useState<ScoreBaseGame | null>(initialGame ?? null);
+  const [message, setMessage] = useState("");
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
+    if (initialGame) return;
     setGame(loadGame(id) ?? null);
-  }, [id]);
+  }, [id, initialGame]);
 
   if (!game) {
     return <PageShell title="記録が見つかりません"><div className="rounded-md bg-white p-6 text-sm font-bold text-stone-600">ローカル保存に該当する記録がありません。</div></PageShell>;
@@ -29,6 +33,14 @@ export function GameDetailClient({ id }: { id: string }) {
 
   function duplicate() {
     if (!game) return;
+    if (dbEnabled) {
+      startTransition(async () => {
+        const result = await duplicateGameAction(game.id);
+        if (result.ok && result.id) router.push(`/games/${result.id}/edit`);
+        else if (!result.ok) setMessage(result.error);
+      });
+      return;
+    }
     const copy = duplicateLocalGame(game.id);
     if (copy) router.push(`/games/${copy.id}/edit`);
   }
@@ -36,6 +48,14 @@ export function GameDetailClient({ id }: { id: string }) {
   function remove() {
     if (!game) return;
     if (!window.confirm("この試合記録を削除しますか？")) return;
+    if (dbEnabled) {
+      startTransition(async () => {
+        const result = await deleteGameAction(game.id);
+        if (result.ok) router.push("/games");
+        else setMessage(result.error);
+      });
+      return;
+    }
     deleteGame(game.id);
     router.push("/games");
   }
@@ -44,6 +64,8 @@ export function GameDetailClient({ id }: { id: string }) {
     <PageShell title={`${game.awayTeamName || "ビジター"} vs ${game.homeTeamName || "ホーム"}`} lead={`${game.gameDate} / ${game.venue || "球場未入力"} / ${modeLabels[game.mode]}`}>
       <div className="space-y-4">
         <section className="grid gap-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-4">
+          {message ? <p className="rounded-md bg-red-50 p-3 text-sm font-bold text-red-700 sm:col-span-4">{message}</p> : null}
+          <div className="rounded-md bg-emerald-50 p-3 text-sm font-bold text-emerald-900 sm:col-span-4">{dbEnabled ? "DB保存済み" : "ローカル保存"}</div>
           <div><p className="text-xs font-bold text-stone-500">スコア</p><p className="text-2xl font-black text-stone-950">{score.away}-{score.home}</p></div>
           <div><p className="text-xs font-bold text-stone-500">試合状態</p><p className="font-black text-stone-950">{statusLabels[game.status]}</p></div>
           <div><p className="text-xs font-bold text-stone-500">応援</p><p className="font-black text-stone-950">{game.favoriteTeamName || "-"}</p></div>
@@ -80,8 +102,8 @@ export function GameDetailClient({ id }: { id: string }) {
         </section>
         <div className="flex flex-wrap gap-2">
           <Link className="rounded-md bg-stone-900 px-4 py-3 text-sm font-bold text-white" href={`/games/${game.id}/edit`}>編集</Link>
-          <button className="rounded-md bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800" onClick={duplicate}>複製</button>
-          <button className="rounded-md bg-red-50 px-4 py-3 text-sm font-bold text-red-700" onClick={remove}>削除</button>
+          <button disabled={isPending} className="rounded-md bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 disabled:opacity-50" onClick={duplicate}>複製</button>
+          <button disabled={isPending} className="rounded-md bg-red-50 px-4 py-3 text-sm font-bold text-red-700 disabled:opacity-50" onClick={remove}>削除</button>
           {game.mode === "SCOREBOOK" ? <Link className="rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white" href={`/games/${game.id}/scorebook`}>スコアブック表示</Link> : null}
           <Link className="rounded-md bg-amber-600 px-4 py-3 text-sm font-bold text-white" href={`/games/${game.id}/export`}>出力画面</Link>
           <CsvDownloadButton filename={`score-base-scorebook-${game.id}.csv`} getCsv={() => exportPlateAppearancesCsv(game)} label="スコアブックCSV" />

@@ -12,16 +12,16 @@ function cardClass() {
   return "w-[760px] max-w-full rounded-md border border-stone-300 bg-white p-6 shadow-sm";
 }
 
-export function ExportClient({ id }: { id: string }) {
-  const [game, setGame] = useState<ScoreBaseGame | null>(null);
-  const [games, setGames] = useState<ScoreBaseGame[]>([]);
+export function ExportClient({ id, initialGame, initialGames = [], dbEnabled = false }: { id: string; initialGame?: ScoreBaseGame | null; initialGames?: ScoreBaseGame[]; dbEnabled?: boolean }) {
+  const [game, setGame] = useState<ScoreBaseGame | null>(initialGame ?? null);
+  const [games, setGames] = useState<ScoreBaseGame[]>(initialGames);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setGame(loadGame(id) ?? null);
-    setGames(loadGames());
+    if (!initialGame) setGame(loadGame(id) ?? null);
+    setGames([...(initialGames ?? []), ...loadGames()]);
     setReady(true);
-  }, [id]);
+  }, [id, initialGame, initialGames]);
 
   if (!ready) return <PageShell title="出力画面"><div className="rounded-md bg-white p-6">読み込み中です。</div></PageShell>;
   if (!game) return <PageShell title="出力画面"><div className="rounded-md bg-white p-6">記録が見つかりません。</div></PageShell>;
@@ -33,6 +33,7 @@ export function ExportClient({ id }: { id: string }) {
   return (
     <PageShell title="出力画面" lead="各カードは固定幅で余白を確保し、PNGとして保存できます。">
       <div className="space-y-8">
+        <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900">{dbEnabled ? "DB保存済みデータから出力しています。" : "ローカル保存データから出力しています。"}</p>
         <section className="space-y-3 overflow-x-auto">
           <SaveImageButton targetId="watch-card" filename="score-base-watch-card.png" />
           <div id="watch-card" className={cardClass()}>

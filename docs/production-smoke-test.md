@@ -239,3 +239,34 @@ Production verification after deploy:
 - `/games`: console errors/warnings were not observed.
 - `/games/[id]/scorebook`: console errors/warnings were not observed during the production navigation check.
 - `/games/[id]/export`: console errors/warnings were not observed.
+
+## v0.7.0 DB-backed MVP
+
+Date: 2026-06-11
+
+Implemented locally:
+
+- Logged-in games list/create/update/duplicate/delete now uses Server Actions and PostgreSQL-backed repositories.
+- Logged-in game detail, scorebook, and export pages can read DB-backed Game data.
+- Scorebook save stores lineups, inning scores, plate appearances, and pitch events in normalized Prisma tables.
+- Logged-in teams list/create/update/delete uses PostgreSQL-backed repositories.
+- Team creation creates TeamMember OWNER in the same Prisma write.
+- Logged-in players list/create/update/delete uses PostgreSQL-backed repositories.
+- Server Actions require the current user and run repository-level permission checks.
+- `/settings/data` can copy localStorage games, teams, and players into DB without deleting localStorage.
+- `/stats/players` and `/stats/teams` include DB-backed games when logged in.
+
+Still localStorage-backed or partial:
+
+- Guest mode remains localStorage-backed.
+- Draft autosave remains localStorage-backed.
+- UI settings remain localStorage-backed.
+- Invitation and TeamMember DB repositories/actions exist, but the existing invitation/member management screens still need a full DB-backed UI pass.
+- ExportSnapshot rows are not created yet.
+- sourceLocalId-based duplicate prevention was not added in this schema pass.
+
+Local verification:
+
+- `npm run build`: passed after DB-backed MVP changes.
+- Schema change: none.
+- Migration: not created.
