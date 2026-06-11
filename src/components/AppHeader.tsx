@@ -5,19 +5,19 @@ import { LogIn, LogOut, Settings, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { logoutAction } from "@/app/actions/auth";
 import { loadCurrentUser, loadWorkspaceContext, logoutUser, onAuthChanged, saveWorkspaceContext, type AuthUser, type WorkspaceContext } from "@/lib/auth/clientAuth";
-import { loadTeams } from "@/lib/masterStorage";
+import { loadTeams, type TeamMaster } from "@/lib/masterStorage";
 import { getUserTeamIds, onTeamAccessChanged } from "@/lib/teamAccessStorage";
 
 export function AppHeader() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [context, setContext] = useState<WorkspaceContext>({ type: "personal", label: "個人ワークスペース" });
-  const [, forceRefresh] = useState(0);
+  const [teams, setTeams] = useState<TeamMaster[]>([]);
 
   useEffect(() => {
     function refresh() {
       setUser(loadCurrentUser());
       setContext(loadWorkspaceContext());
-      forceRefresh((value) => value + 1);
+      setTeams(loadTeams());
     }
     refresh();
     const unsubscribeAuth = onAuthChanged(refresh);
@@ -29,10 +29,10 @@ export function AppHeader() {
   }, []);
 
   const teamIds = getUserTeamIds(user?.id);
-  const teams = loadTeams().filter((team) => teamIds.includes(team.id));
+  const availableTeams = teams.filter((team) => teamIds.includes(team.id));
   const options = [
     { value: "personal", label: "個人ワークスペース" },
-    ...teams.map((team) => ({ value: `team:${team.id}`, label: team.name })),
+    ...availableTeams.map((team) => ({ value: `team:${team.id}`, label: team.name })),
   ];
 
   function changeContext(value: string) {
@@ -43,7 +43,7 @@ export function AppHeader() {
       return;
     }
     const teamId = value.replace("team:", "");
-    const team = loadTeams().find((item) => item.id === teamId);
+    const team = teams.find((item) => item.id === teamId) ?? loadTeams().find((item) => item.id === teamId);
     const next = { type: "team" as const, teamId, label: team?.name ?? "チームワークスペース" };
     setContext(next);
     saveWorkspaceContext(next);

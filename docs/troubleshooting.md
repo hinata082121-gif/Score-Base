@@ -48,6 +48,14 @@
 - 十分に長いランダム文字列を使います。
 - 設定後に再デプロイします。
 
+## React hydration error #418
+
+- SSR時とクライアント初期描画時のHTMLが一致しているか確認します。
+- client componentの `useState` 初期値やrender中で `localStorage`、`window`、`document`、日時、乱数、locale依存値を直接読まないようにします。
+- localStorage由来の観戦記録、チーム、選手、集計件数は、初回描画では空または読み込み中表示にして、`useEffect` 後に読み込みます。
+- scorebook/exportなど、URL上のIDからlocalStorageデータを探す画面では、読み込み完了前にnot-found表示を出さないようにします。
+- 本番ビルドで `npm run build` 後に `next start` を起動し、Consoleに #418 が出ないことを確認します。
+
 ## Invite link does not work
 
 - base URL生成ロジックが `NEXTAUTH_URL`、`AUTH_URL`、`VERCEL_URL` の順で本番URLを解決できているか確認します。

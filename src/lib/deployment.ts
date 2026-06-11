@@ -45,7 +45,7 @@ export function deploymentEnvChecks(): DeploymentCheck[] {
       key: "AUTH_SECRET",
       label: "AUTH_SECRET",
       configured: Boolean(process.env.AUTH_SECRET),
-      help: "認証用の署名・暗号化に使う十分に長いランダム文字列です。",
+      help: "認証用の署名・暗号化に使う十分に長いランダム文字列です。VercelのProduction/Preview/Developmentで必要な環境に設定し、変更後は再デプロイします。",
     },
     {
       key: "NEXTAUTH_URL",

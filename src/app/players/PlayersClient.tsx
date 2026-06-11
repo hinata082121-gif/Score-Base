@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CsvDownloadButton } from "@/components/CsvButtons";
 import { PageShell } from "@/components/PageShell";
 import { exportPlayersCsv } from "@/lib/repositories/csv";
 import { deletePlayerMaster, loadPlayers, loadTeams } from "@/lib/masterStorage";
 
 export function PlayersClient() {
-  const [players, setPlayers] = useState(() => loadPlayers());
-  const [teams] = useState(() => loadTeams());
+  const [players, setPlayers] = useState<ReturnType<typeof loadPlayers>>([]);
+  const [teams, setTeams] = useState<ReturnType<typeof loadTeams>>([]);
+  const [ready, setReady] = useState(false);
   const [query, setQuery] = useState("");
   const [teamId, setTeamId] = useState("");
   const [position, setPosition] = useState("");
@@ -20,6 +21,12 @@ export function PlayersClient() {
     const matchesPosition = !position || player.primaryPosition === position;
     return matchesQuery && matchesTeam && matchesPosition;
   }), [players, query, teamId, position]);
+
+  useEffect(() => {
+    setPlayers(loadPlayers());
+    setTeams(loadTeams());
+    setReady(true);
+  }, []);
 
   function remove(id: string) {
     if (!window.confirm("この選手を削除しますか？")) return;
@@ -39,6 +46,7 @@ export function PlayersClient() {
           <Link className="inline-flex min-h-11 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-bold text-white" href="/players/new">新規選手登録</Link>
         </section>
         <section className="space-y-3">
+          {!ready ? <div className="rounded-md border border-dashed border-stone-300 bg-white p-8 text-center text-sm font-bold text-stone-500">選手を読み込み中です。</div> : null}
           {filtered.map((player) => (
             <article key={player.id} className="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -55,7 +63,7 @@ export function PlayersClient() {
               </div>
             </article>
           ))}
-          {filtered.length === 0 ? (
+          {ready && filtered.length === 0 ? (
             <div className="rounded-md border border-dashed border-stone-300 bg-white p-8 text-center">
               <p className="font-bold text-stone-600">選手が未登録、または条件に一致しません。</p>
               <Link className="mt-4 inline-flex min-h-11 items-center rounded-md bg-emerald-700 px-4 text-sm font-bold text-white" href="/players/new">選手を登録する</Link>

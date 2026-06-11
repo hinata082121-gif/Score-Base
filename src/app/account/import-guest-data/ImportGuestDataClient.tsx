@@ -10,9 +10,12 @@ import { loadGames } from "@/lib/storage";
 
 export function ImportGuestDataClient() {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const counts = { games: loadGames().length, teams: loadTeams().length, players: loadPlayers().length };
+  const [counts, setCounts] = useState({ games: 0, teams: 0, players: 0 });
 
-  useEffect(() => setUser(loadCurrentUser()), []);
+  useEffect(() => {
+    setUser(loadCurrentUser());
+    setCounts({ games: loadGames().length, teams: loadTeams().length, players: loadPlayers().length });
+  }, []);
 
   if (!user) {
     return (
@@ -39,4 +42,3 @@ export function ImportGuestDataClient() {
     </PageShell>
   );
 }
-

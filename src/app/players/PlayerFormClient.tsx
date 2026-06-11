@@ -20,7 +20,7 @@ type PlayerFormState = {
 
 export function PlayerFormClient({ id }: { id?: string }) {
   const router = useRouter();
-  const [teams, setTeams] = useState(() => loadTeams());
+  const [teams, setTeams] = useState<ReturnType<typeof loadTeams>>([]);
   const [form, setForm] = useState<PlayerFormState>({ teamId: "", name: "", kana: "", number: "", throwingHand: "UNKNOWN", battingSide: "UNKNOWN", primaryPosition: "", memo: "" });
   const [error, setError] = useState("");
 

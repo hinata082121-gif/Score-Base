@@ -11,9 +11,13 @@ import { getUserTeamIds } from "@/lib/teamAccessStorage";
 
 export function AccountClient() {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [counts, setCounts] = useState({ games: 0, teams: 0, players: 0 });
 
   useEffect(() => {
-    const refresh = () => setUser(loadCurrentUser());
+    const refresh = () => {
+      setUser(loadCurrentUser());
+      setCounts({ games: loadGames().length, teams: loadTeams().length, players: loadPlayers().length });
+    };
     refresh();
     return onAuthChanged(refresh);
   }, []);
@@ -45,13 +49,12 @@ export function AccountClient() {
           </div>
         </section>
         <section className="grid gap-3 sm:grid-cols-4">
-          <div className="rounded-md border border-stone-200 bg-white p-4 shadow-sm"><p className="text-xs font-bold text-stone-500">試合</p><p className="text-2xl font-black">{loadGames().length}</p></div>
-          <div className="rounded-md border border-stone-200 bg-white p-4 shadow-sm"><p className="text-xs font-bold text-stone-500">チーム</p><p className="text-2xl font-black">{loadTeams().length}</p></div>
+          <div className="rounded-md border border-stone-200 bg-white p-4 shadow-sm"><p className="text-xs font-bold text-stone-500">試合</p><p className="text-2xl font-black">{counts.games}</p></div>
+          <div className="rounded-md border border-stone-200 bg-white p-4 shadow-sm"><p className="text-xs font-bold text-stone-500">チーム</p><p className="text-2xl font-black">{counts.teams}</p></div>
           <div className="rounded-md border border-stone-200 bg-white p-4 shadow-sm"><p className="text-xs font-bold text-stone-500">所属チーム</p><p className="text-2xl font-black">{teamCount}</p></div>
-          <div className="rounded-md border border-stone-200 bg-white p-4 shadow-sm"><p className="text-xs font-bold text-stone-500">選手</p><p className="text-2xl font-black">{loadPlayers().length}</p></div>
+          <div className="rounded-md border border-stone-200 bg-white p-4 shadow-sm"><p className="text-xs font-bold text-stone-500">選手</p><p className="text-2xl font-black">{counts.players}</p></div>
         </section>
       </div>
     </PageShell>
   );
 }
-

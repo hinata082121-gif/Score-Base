@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CsvDownloadButton } from "@/components/CsvButtons";
 import { exportGamesCsv } from "@/lib/repositories/csv";
 import { deleteGame, duplicateLocalGame, loadGames } from "@/lib/storage";
@@ -28,12 +28,18 @@ function inPeriod(dateText: string, period: string, start: string, end: string) 
 
 export function GamesListClient() {
   const router = useRouter();
-  const [games, setGames] = useState(() => loadGames());
+  const [games, setGames] = useState<ReturnType<typeof loadGames>>([]);
+  const [ready, setReady] = useState(false);
   const [period, setPeriod] = useState("all");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [sort, setSort] = useState("new");
   const customDateError = period === "custom" && (!start || !end) ? "カスタム期間では開始日と終了日を入力してください。" : "";
+
+  useEffect(() => {
+    setGames(loadGames());
+    setReady(true);
+  }, []);
 
   const filtered = useMemo(() => {
     if (period === "custom" && (!start || !end)) return [];
@@ -73,6 +79,7 @@ export function GamesListClient() {
       </section>
 
       <section className="space-y-3">
+        {!ready ? <div className="rounded-md border border-dashed border-stone-300 bg-white p-8 text-center text-sm font-bold text-stone-500">観戦記録を読み込み中です。</div> : null}
         {filtered.map((game) => {
           const score = scoreFor(game);
           return (
@@ -96,7 +103,7 @@ export function GamesListClient() {
             </article>
           );
         })}
-        {filtered.length === 0 ? <div className="rounded-md border border-dashed border-stone-300 bg-white p-8 text-center text-sm font-bold text-stone-500">条件に合う観戦記録がありません。</div> : null}
+        {ready && filtered.length === 0 ? <div className="rounded-md border border-dashed border-stone-300 bg-white p-8 text-center text-sm font-bold text-stone-500">条件に合う観戦記録がありません。</div> : null}
       </section>
     </div>
   );

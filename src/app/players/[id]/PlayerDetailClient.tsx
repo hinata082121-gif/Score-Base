@@ -11,16 +11,19 @@ export function PlayerDetailClient({ id }: { id: string }) {
   const [player, setPlayer] = useState<PlayerMaster | null>(null);
   const [stats, setStats] = useState<ReturnType<typeof playerStats>[number] | null>(null);
   const [appearances, setAppearances] = useState<Array<{ game: string; result: string }>>([]);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const current = loadPlayer(id) ?? null;
     setPlayer(current);
+    setReady(true);
     if (!current) return;
     const games = loadGames();
     setStats(playerStats(games).find((row) => row.name === current.name) ?? null);
     setAppearances(games.flatMap((game) => game.plateAppearances.filter((pa) => pa.batterName === current.name).map((pa) => ({ game: `${game.awayTeamName} vs ${game.homeTeamName}`, result: pa.result }))));
   }, [id]);
 
+  if (!ready) return <PageShell title="選手"><div className="rounded-md bg-white p-6">読み込み中です。</div></PageShell>;
   if (!player) return <PageShell title="選手が見つかりません"><Link className="rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white" href="/players">選手一覧へ</Link></PageShell>;
 
   return (

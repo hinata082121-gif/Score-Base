@@ -197,3 +197,38 @@ Unconfirmed from this workspace because production secret values are not availab
 - `npx prisma migrate status` against production
 - DB-backed Server Actions against Supabase PostgreSQL
 - Role enforcement backed by persisted team membership data
+
+## v0.6.4 Stabilization Check
+
+Date: 2026-06-11
+
+Production diagnostics observed on `/settings/deployment`:
+
+- `AUTH_SECRET`: configured
+- Public base URL: `https://score-base.vercel.app`
+- Auth URL mismatch warning: not shown
+- Prisma connection: success
+- Required table diagnostic: success
+
+Hydration investigation:
+
+- React hydration error #418 reproduced locally on the production build at `/games` before the fix.
+- Cause: several client components read localStorage-backed games, teams, players, or counts during the first render. SSR produced empty or fallback HTML, while the client initial render immediately used browser-only data.
+- Fix: localStorage-backed state now renders a loading or empty SSR-compatible first pass, then loads data in `useEffect`.
+- Local production verification after the fix: `/games` opened with no console errors or warnings.
+
+Persistence status:
+
+- Supabase connectivity and required table presence are confirmed by production diagnostics.
+- Repository and Server Action foundations exist for DB-backed flows.
+- The current MVP UI for games, teams, players, invitations, and role checks still primarily uses localStorage-backed storage paths.
+- DB-backed Server Actions were not verified end-to-end from this workspace because production secret values are not available locally and no secret values should be copied into logs or docs.
+- Team permissions and invitation state should be treated as localStorage-only until the UI is wired to persisted membership tables and verified after re-login.
+
+Local command results after the fix:
+
+- `npm run build`: passed with a non-secret placeholder PostgreSQL `DATABASE_URL`.
+- `npm run lint`: passed.
+- `npx prisma validate`: passed with a non-secret placeholder PostgreSQL `DATABASE_URL`.
+- `npx prisma migrate status`: not run against production because the production Supabase connection string is not available locally.
+- `npm audit`: 5 moderate findings remain; available forced fixes would introduce breaking Next.js/Prisma changes and should be handled in a separate dependency-upgrade branch.

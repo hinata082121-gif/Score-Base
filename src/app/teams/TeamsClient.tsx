@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageShell } from "@/components/PageShell";
 import { deleteTeamMaster, loadPlayers, loadTeams, TeamCategory } from "@/lib/masterStorage";
 
@@ -16,10 +16,17 @@ const categoryLabels: Record<TeamCategory, string> = {
 };
 
 export function TeamsClient() {
-  const [teams, setTeams] = useState(() => loadTeams());
-  const [players] = useState(() => loadPlayers());
+  const [teams, setTeams] = useState<ReturnType<typeof loadTeams>>([]);
+  const [players, setPlayers] = useState<ReturnType<typeof loadPlayers>>([]);
+  const [ready, setReady] = useState(false);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<TeamCategory>("");
+
+  useEffect(() => {
+    setTeams(loadTeams());
+    setPlayers(loadPlayers());
+    setReady(true);
+  }, []);
 
   const filtered = useMemo(() => teams.filter((team) => {
     const matchesQuery = !query || `${team.name}${team.shortName}${team.homeGround}`.toLowerCase().includes(query.toLowerCase());
@@ -44,6 +51,7 @@ export function TeamsClient() {
           <Link className="inline-flex min-h-11 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-bold text-white" href="/teams/new">新規チーム作成</Link>
         </section>
         <section className="space-y-3">
+          {!ready ? <div className="rounded-md border border-dashed border-stone-300 bg-white p-8 text-center text-sm font-bold text-stone-500">チームを読み込み中です。</div> : null}
           {filtered.map((team) => {
             const playerCount = players.filter((player) => player.teamId === team.id).length;
             return (
@@ -66,7 +74,7 @@ export function TeamsClient() {
               </article>
             );
           })}
-          {filtered.length === 0 ? (
+          {ready && filtered.length === 0 ? (
             <div className="rounded-md border border-dashed border-stone-300 bg-white p-8 text-center">
               <p className="font-bold text-stone-600">チームが未登録、または条件に一致しません。</p>
               <Link className="mt-4 inline-flex min-h-11 items-center rounded-md bg-emerald-700 px-4 text-sm font-bold text-white" href="/teams/new">チームを作成する</Link>

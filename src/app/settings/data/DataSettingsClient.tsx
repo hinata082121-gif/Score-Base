@@ -1,19 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { downloadText } from "@/components/CsvButtons";
 import { PageShell } from "@/components/PageShell";
 import { loadPlayers, loadTeams, savePlayers, saveTeams } from "@/lib/masterStorage";
 import { loadGames, saveGames } from "@/lib/storage";
 
 export function DataSettingsClient() {
-  const [, setVersion] = useState(0);
-  const counts = {
-    games: loadGames().length,
-    teams: loadTeams().length,
-    players: loadPlayers().length,
-  };
+  const [counts, setCounts] = useState({ games: 0, teams: 0, players: 0 });
+
+  function refreshCounts() {
+    setCounts({ games: loadGames().length, teams: loadTeams().length, players: loadPlayers().length });
+  }
+
+  useEffect(() => {
+    refreshCounts();
+  }, []);
 
   function backup() {
     const data = {
@@ -30,7 +33,7 @@ export function DataSettingsClient() {
     saveGames([]);
     saveTeams([]);
     savePlayers([]);
-    setVersion((value) => value + 1);
+    refreshCounts();
   }
 
   return (

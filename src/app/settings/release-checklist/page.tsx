@@ -3,7 +3,7 @@ import { PageShell } from "@/components/PageShell";
 const groups = [
   {
     title: "基本表示",
-    items: ["トップページが表示される", "/login が表示される", "/register が表示される", "/games/new が表示される", "/robots.txt が表示される", "/sitemap.xml が表示される", "metadata title が Score Base になっている", "manifest name が Score Base になっている", "スマホ幅でレイアウトが崩れない", "PC幅でレイアウトが崩れない"],
+    items: ["トップページが表示される", "/login が表示される", "/register が表示される", "/games/new が表示される", "/robots.txt が表示される", "/sitemap.xml が表示される", "metadata title が Score Base になっている", "manifest name が Score Base になっている", "ConsoleにReact hydration error #418が出ていない", "スマホ幅でレイアウトが崩れない", "PC幅でレイアウトが崩れない"],
   },
   {
     title: "認証",
@@ -19,7 +19,7 @@ const groups = [
   },
   {
     title: "チーム/選手",
-    items: ["チームワークスペースを作成できる", "チーム切替ができる", "チーム作成できる", "チーム編集できる", "選手作成できる", "選手編集できる", "メンバー招待リンクを作成できる", "招待リンクから参加できる", "OWNER / ADMIN / EDITOR / SCORER / VIEWER の権限差を確認する", "VIEWERが編集・削除できない", "権限不足時に403表示になる"],
+    items: ["チームワークスペースを作成できる", "チーム切替ができる", "チーム作成できる", "チーム編集できる", "選手作成できる", "選手編集できる", "メンバー招待リンクを作成できる", "招待リンクから参加できる", "OWNER / ADMIN / EDITOR / SCORER / VIEWER の権限差を確認する", "再ログイン後も権限とチームメンバー情報が保持される", "VIEWERが編集・削除できない", "権限不足時に403表示になる"],
   },
   {
     title: "CSV/共有",
@@ -27,7 +27,7 @@ const groups = [
   },
   {
     title: "Vercel/DB",
-    items: ["Supabase PostgreSQL連携済み", "POSTGRES_PRISMA_URLをDATABASE_URLへコピー済み", "AUTH_SECRET設定済み", "NEXTAUTH_URL設定済み", "AUTH_URL設定済み", "AUTH_TRUST_HOST設定済み", "Prisma migrate deploy済み", "本番DBに保存される", "Preview/ProductionのDB接続先を確認済み", "/settings/deployment のDB接続診断が成功する"],
+    items: ["Supabase PostgreSQL連携済み", "POSTGRES_PRISMA_URLをDATABASE_URLへコピー済み", "ProductionのAUTH_SECRET設定済み", "NEXTAUTH_URL設定済み", "AUTH_URL設定済み", "AUTH_TRUST_HOST設定済み", "Prisma migrate deploy済み", "本番DBに保存される", "DB-backed Server Actionsで保存/取得できる", "再ログイン後にDB保存データを確認できる", "Supabase Table Editorで主要テーブルを確認できる", "Preview/ProductionのDB接続先を確認済み", "/settings/deployment のDB接続診断が成功する", "/settings/deployment の必須テーブル診断が成功する"],
   },
   {
     title: "セキュリティ",
