@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { deploymentEnvChecks, publicBaseUrl } from "@/lib/deployment";
 import { databaseUrlSourceLabel, resolveDatabaseUrl } from "@/lib/db/databaseUrl";
 import { getPrisma } from "@/lib/db/prisma";
-import { deploymentErrorGuidance } from "@/lib/errorGuidance";
+import { deploymentErrorGuidance, publicOperationalErrorMessage } from "@/lib/errorGuidance";
 import { buildShareUrl, sameUrlHost } from "@/lib/url";
 
 type QueryablePrisma = {
@@ -27,7 +27,7 @@ async function checkPrisma() {
     if (prisma.$queryRawUnsafe) await prisma.$queryRawUnsafe("SELECT 1");
     return { status: "成功", message: "Prisma接続を確認しました。", guidance: "", source: databaseUrlSourceLabel(databaseUrl.source) };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Prisma接続に失敗しました。";
+    const message = publicOperationalErrorMessage(error, "Prisma接続に失敗しました。");
     return { status: "失敗", message, guidance: deploymentErrorGuidance(message), source: databaseUrlSourceLabel(databaseUrl.source) };
   }
 }

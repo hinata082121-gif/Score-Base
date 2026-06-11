@@ -1,4 +1,4 @@
-import { deploymentErrorGuidance } from "@/lib/errorGuidance";
+import { deploymentErrorGuidance, publicOperationalErrorMessage } from "@/lib/errorGuidance";
 import { isPostgresDatabaseUrl, resolveDatabaseUrl } from "@/lib/db/databaseUrl";
 
 type PrismaClientLike = {
@@ -50,6 +50,6 @@ export function isDbConfigured() {
 }
 
 export function dbErrorMessage(error: unknown) {
-  const message = error instanceof Error ? error.message : "DB処理で不明なエラーが発生しました。";
+  const message = publicOperationalErrorMessage(error, "DB処理に失敗しました。");
   return `${message} ${deploymentErrorGuidance(message)}`;
 }

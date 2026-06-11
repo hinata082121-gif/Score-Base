@@ -21,6 +21,14 @@
 - `npm run prisma:migrate:deploy` または `npx prisma migrate deploy` が完了しているか確認します。
 - `/settings/deployment` のPrisma接続診断を確認します。
 
+## PostgreSQL database does not exist
+
+- `/settings/deployment` でPrisma接続が「接続先データベースが見つかりません」と出る場合、Vercel Productionの `DATABASE_URL` がSupabaseの実在するDBを指していません。
+- Vercel Supabase連携で作成された `POSTGRES_PRISMA_URL` の値を `DATABASE_URL` へコピーします。
+- Production / Preview / Development のどのEnvironmentへ設定したか確認します。
+- 環境変数を修正した後に再デプロイします。
+- 再デプロイ後、空のSupabase PostgreSQLに対して `npm run prisma:migrate:deploy` または `npx prisma migrate deploy` を実行します。
+
 ## Prisma migrate deploy fails on Supabase
 
 - Supabase PostgreSQLが空DBか、既存schemaとmigration履歴が一致しているか確認します。

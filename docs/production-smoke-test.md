@@ -91,3 +91,95 @@ The active migration is PostgreSQL-only: `prisma/migrations/20260611120000_init_
 - Redeploy after environment variable changes.
 - Run production migration deploy.
 - Re-open `/settings/deployment` and confirm Prisma connection succeeds.
+
+## v0.6.3 Production Check
+
+Date: 2026-06-11
+
+Latest local commit before check:
+
+```text
+a5d9e3c fix: support supabase postgres deployment
+```
+
+HTTP page checks returned 200 for:
+
+- `/`
+- `/login`
+- `/register`
+- `/games`
+- `/games/new`
+- `/teams`
+- `/players`
+- `/stats/players`
+- `/stats/teams`
+- `/settings`
+- `/settings/deployment`
+- `/settings/release-checklist`
+- `/robots.txt`
+- `/sitemap.xml`
+
+Migration file check:
+
+- `prisma/migrations/20260611120000_init_postgresql/migration.sql` is not empty.
+- The migration contains PostgreSQL `CREATE TABLE` SQL for `User`, `Team`, `Player`, `Game`, `TeamMember`, `Invitation`, `Account`, `Session`, `VerificationToken`, `AuditLog`, `GameTeam`, `LineupEntry`, `InningScore`, `PlateAppearance`, `PitchEvent`, `RunnerEvent`, `GameNote`, and `ExportSnapshot`.
+
+Deployment diagnostics observed on production:
+
+- `DATABASE_URL`: configured
+- `POSTGRES_PRISMA_URL`: configured
+- `POSTGRES_URL`: configured
+- `POSTGRES_URL_NON_POOLING`: configured
+- Effective DB URL source: `DATABASE_URL`
+- `AUTH_SECRET`: not configured
+- `NEXTAUTH_URL`: configured
+- `AUTH_URL`: configured
+- `AUTH_TRUST_HOST`: configured
+- `SUPABASE_URL`: configured
+- `NEXT_PUBLIC_SUPABASE_URL`: configured
+- Public base URL: `https://score-base.vercel.app`
+- Auth URL mismatch warning: not shown
+- Prisma connection: failed because the configured `DATABASE_URL` points to a PostgreSQL database that does not exist.
+
+Migration deploy:
+
+- Not executed from this workspace.
+- Local `DATABASE_URL` is local/non-production, and the production Supabase connection string is not available without retrieving secret values.
+- Do not paste or record production secret values in this document.
+- Fix Vercel Production `DATABASE_URL` first, then run `npm run prisma:migrate:deploy` or `npx prisma migrate deploy` against the Supabase PostgreSQL database.
+
+Smoke test results:
+
+- New registration: passed with a throwaway smoke-test account.
+- Logout: passed.
+- Login: passed.
+- Account page: passed.
+- Watch-only game creation: passed.
+- Simple game creation: passed.
+- Detailed scorebook game creation: passed.
+- SBO button input: passed.
+- Plate result button input: passed.
+- Plate appearance confirmation: passed.
+- Scorebook view: passed.
+- Waseda / Keio scorebook style switch: passed.
+- Team creation: passed in the current localStorage-backed MVP flow.
+- Player creation: passed in the current localStorage-backed MVP flow.
+- Scorebook CSV button: clicked successfully.
+- Share copy: copied successfully.
+- Export page: displayed after client-side localStorage load.
+- PNG save button: clicked, but a React hydration error was present in console during the production session.
+
+Production issues found:
+
+- `AUTH_SECRET` is not configured in the observed production runtime.
+- Prisma connection fails because the configured `DATABASE_URL` points to a non-existent PostgreSQL database.
+- `/settings/deployment` exposed the raw Prisma error message before the v0.6.3 fix. The follow-up code masks operational DB errors before displaying them.
+- Client-side localStorage export/scorebook pages briefly rendered a not-found state before data loaded. The follow-up code adds a loading state before showing not-found.
+
+Unconfirmed because production DB is not reachable:
+
+- Supabase table creation
+- `_prisma_migrations` creation
+- `npx prisma migrate status` against production
+- DB-backed Server Actions against Supabase PostgreSQL
+- Role enforcement backed by persisted team membership data

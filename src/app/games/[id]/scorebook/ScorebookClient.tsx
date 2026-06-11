@@ -9,12 +9,15 @@ import type { ScoreBaseGame, ScorebookStyle } from "@/lib/types";
 export function ScorebookClient({ id }: { id: string }) {
   const [game, setGame] = useState<ScoreBaseGame | null>(null);
   const [style, setStyle] = useState<ScorebookStyle>("WASEDA");
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     setGame(loadGame(id) ?? null);
     setStyle(loadSettings().defaultStyle);
+    setReady(true);
   }, [id]);
 
+  if (!ready) return <PageShell title="スコアブック"><div className="rounded-md bg-white p-6">読み込み中です。</div></PageShell>;
   if (!game) return <PageShell title="スコアブック"><div className="rounded-md bg-white p-6">記録が見つかりません。</div></PageShell>;
 
   return (

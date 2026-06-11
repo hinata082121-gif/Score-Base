@@ -15,12 +15,15 @@ function cardClass() {
 export function ExportClient({ id }: { id: string }) {
   const [game, setGame] = useState<ScoreBaseGame | null>(null);
   const [games, setGames] = useState<ScoreBaseGame[]>([]);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     setGame(loadGame(id) ?? null);
     setGames(loadGames());
+    setReady(true);
   }, [id]);
 
+  if (!ready) return <PageShell title="出力画面"><div className="rounded-md bg-white p-6">読み込み中です。</div></PageShell>;
   if (!game) return <PageShell title="出力画面"><div className="rounded-md bg-white p-6">記録が見つかりません。</div></PageShell>;
 
   const score = scoreFor(game);
