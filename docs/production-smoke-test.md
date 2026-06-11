@@ -102,6 +102,13 @@ Latest local commit before check:
 a5d9e3c fix: support supabase postgres deployment
 ```
 
+Follow-up commits pushed during this check:
+
+```text
+f19b594 fix: harden production diagnostics
+ccf2757 feat: add production table diagnostics
+```
+
 HTTP page checks returned 200 for:
 
 - `/`
@@ -139,14 +146,17 @@ Deployment diagnostics observed on production:
 - `NEXT_PUBLIC_SUPABASE_URL`: configured
 - Public base URL: `https://score-base.vercel.app`
 - Auth URL mismatch warning: not shown
-- Prisma connection: failed because the configured `DATABASE_URL` points to a PostgreSQL database that does not exist.
+- Prisma connection before follow-up redeploy: failed because the configured `DATABASE_URL` pointed to a PostgreSQL database that did not exist.
+- Prisma connection after follow-up redeploy: success.
+- Required table diagnostic after follow-up redeploy: success.
 
 Migration deploy:
 
 - Not executed from this workspace.
 - Local `DATABASE_URL` is local/non-production, and the production Supabase connection string is not available without retrieving secret values.
 - Do not paste or record production secret values in this document.
-- Fix Vercel Production `DATABASE_URL` first, then run `npm run prisma:migrate:deploy` or `npx prisma migrate deploy` against the Supabase PostgreSQL database.
+- The production app now reports Prisma connection success and required table diagnostic success, including `_prisma_migrations`, so the Supabase schema is present.
+- If future schema changes are added, run `npm run prisma:migrate:deploy` or `npx prisma migrate deploy` against the Supabase PostgreSQL database.
 
 Smoke test results:
 
@@ -172,14 +182,18 @@ Smoke test results:
 Production issues found:
 
 - `AUTH_SECRET` is not configured in the observed production runtime.
-- Prisma connection fails because the configured `DATABASE_URL` points to a non-existent PostgreSQL database.
+- Prisma connection initially failed because the configured `DATABASE_URL` pointed to a non-existent PostgreSQL database. It later reported success after redeploy/runtime refresh.
 - `/settings/deployment` exposed the raw Prisma error message before the v0.6.3 fix. The follow-up code masks operational DB errors before displaying them.
 - Client-side localStorage export/scorebook pages briefly rendered a not-found state before data loaded. The follow-up code adds a loading state before showing not-found.
+- React hydration error #418 still appears in console on scorebook/export pages, while the pages render successfully.
 
-Unconfirmed because production DB is not reachable:
+Confirmed after follow-up redeploy:
 
 - Supabase table creation
 - `_prisma_migrations` creation
+
+Unconfirmed from this workspace because production secret values are not available locally:
+
 - `npx prisma migrate status` against production
 - DB-backed Server Actions against Supabase PostgreSQL
 - Role enforcement backed by persisted team membership data
