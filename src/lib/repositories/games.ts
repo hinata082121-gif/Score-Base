@@ -168,6 +168,7 @@ function baseGameData(input: ScoreBaseGame, userId: string) {
     homeScore: input.inningScores.reduce((sum, inning) => sum + scoreNumber(inning.bottom), 0),
     awayScore: input.inningScores.reduce((sum, inning) => sum + scoreNumber(inning.top), 0),
     visibility: input.isPublic ? "PUBLIC" : "PRIVATE",
+    sourceLocalId: input.sourceLocalId,
   };
 }
 
@@ -257,6 +258,10 @@ export async function getGameByIdForUser(id: string, userId: string) {
 
 export async function createGameForUser(input: ScoreBaseGame, userId: string) {
   const prisma = await getPrisma();
+  if (input.sourceLocalId) {
+    const existing = await prisma.game.findFirst({ where: { ownerId: userId, sourceLocalId: input.sourceLocalId }, include: includeGame }) as DbGame | null;
+    if (existing) return dbGameToScoreBaseGame(existing);
+  }
   const row = await prisma.game.create({
     data: { ...baseGameData(input, userId), ...nestedGameData(input) },
     include: includeGame,

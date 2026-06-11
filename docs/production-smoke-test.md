@@ -270,3 +270,55 @@ Local verification:
 - `npm run build`: passed after DB-backed MVP changes.
 - Schema change: none.
 - Migration: not created.
+
+## v0.7.1 Production Hardening Checklist
+
+Date: 2026-06-11
+
+Implementation:
+
+- `sourceLocalId` added to `Game`, `Team`, and `Player`.
+- Migration added: `prisma/migrations/20260611170000_add_source_local_id/migration.sql`.
+- localStorage migration now reports created / skipped / failed counts.
+- Team member and invitation management screens now read/write DB-backed `TeamMember` and `Invitation` rows.
+- Invite acceptance updates `Invitation.status`, `acceptedById`, and `acceptedAt`.
+- Last OWNER downgrade/removal is blocked in Server Actions.
+- Export metadata is saved to `ExportSnapshot` for DB-backed CSV / PNG / share operations.
+
+Production deployment checks:
+
+- Confirm Vercel Production includes commit `b3d06f7` or later plus the v0.7.1 commit.
+- Run `npm run prisma:migrate:deploy` or `npx prisma migrate deploy` against Production before using sourceLocalId-backed migration.
+- Open `/settings/deployment` and confirm `AUTH_SECRET`, Prisma connection, and required table diagnostics are successful.
+- Open `/settings/data` and confirm the DB migration control is visible.
+
+Supabase Table Editor rows to confirm during smoke test:
+
+- `User`
+- `Session`
+- `Team`
+- `TeamMember`
+- `Player`
+- `Game`
+- `LineupEntry`
+- `InningScore`
+- `PlateAppearance`
+- `PitchEvent`
+- `Invitation`
+- `ExportSnapshot`
+
+Role smoke test:
+
+- User A creates a team and becomes OWNER.
+- User A creates VIEWER / SCORER / EDITOR / ADMIN invitations.
+- User B accepts an invitation.
+- VIEWER can view but cannot edit team/player/scorebook.
+- SCORER can input scorebook but cannot manage members.
+- EDITOR can edit team/player but cannot manage members.
+- ADMIN can create/revoke invitations.
+- Last OWNER cannot be removed or downgraded.
+
+Not performed from this workspace:
+
+- Supabase Table Editor row verification, because it requires authenticated Supabase console access.
+- Full multi-user Production smoke test, because it requires multiple real test accounts and deliberate DB mutations.

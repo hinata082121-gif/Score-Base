@@ -12,6 +12,7 @@ export type DbPlayerInput = {
   battingSide?: string;
   primaryPosition?: string;
   memo?: string;
+  sourceLocalId?: string;
 };
 
 const includePlayer = { team: true, battingRecords: true, pitchingRecords: true };
@@ -57,6 +58,13 @@ export async function getPlayerForUser(playerId: string, userId: string) {
 export async function createPlayerForUser(input: DbPlayerInput, userId: string) {
   if (input.teamId) await requireTeamRole(input.teamId, userId, ["OWNER", "ADMIN", "EDITOR"]);
   const prisma = await getPrisma();
+  if (input.sourceLocalId) {
+    const existing = await prisma.player.findFirst({
+      where: input.teamId ? { teamId: input.teamId, sourceLocalId: input.sourceLocalId } : { ownerId: userId, sourceLocalId: input.sourceLocalId },
+      include: includePlayer,
+    });
+    if (existing) return existing;
+  }
   return prisma.player.create({
     data: {
       ...input,

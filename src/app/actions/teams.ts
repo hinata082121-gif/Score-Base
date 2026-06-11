@@ -15,6 +15,7 @@ function data(formData: FormData) {
     homeGround: String(formData.get("homeGround") ?? ""),
     primaryColor: String(formData.get("primaryColor") ?? ""),
     memo: String(formData.get("memo") ?? ""),
+    sourceLocalId: String(formData.get("sourceLocalId") ?? "") || undefined,
   };
 }
 

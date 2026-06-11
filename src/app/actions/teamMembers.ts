@@ -23,6 +23,10 @@ export async function updateMemberRoleAction(teamId: string, memberUserId: strin
   }
 }
 
+export async function updateTeamMemberRoleAction(teamId: string, memberUserId: string, role: TeamRole): Promise<ActionResult> {
+  return updateMemberRoleAction(teamId, memberUserId, role);
+}
+
 export async function removeTeamMemberAction(teamId: string, memberUserId: string): Promise<ActionResult> {
   try {
     const user = await requireCurrentUser();

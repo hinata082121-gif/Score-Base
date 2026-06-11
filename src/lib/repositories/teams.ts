@@ -10,6 +10,7 @@ export type DbTeamInput = {
   homeGround?: string;
   primaryColor?: string;
   memo?: string;
+  sourceLocalId?: string;
 };
 
 const includeTeam = { players: true, members: true, homeGames: true, awayGames: true };
@@ -48,6 +49,10 @@ export async function getTeamForUser(teamId: string, userId: string) {
 
 export async function createTeamForUser(input: DbTeamInput, userId: string) {
   const prisma = await getPrisma();
+  if (input.sourceLocalId) {
+    const existing = await prisma.team.findFirst({ where: { ownerId: userId, sourceLocalId: input.sourceLocalId }, include: includeTeam });
+    if (existing) return existing;
+  }
   return prisma.team.create({
     data: {
       ...input,
@@ -84,12 +89,22 @@ export async function updateMemberRole(teamId: string, memberUserId: string, rol
   await requireTeamRole(teamId, actingUserId, ["OWNER", "ADMIN"]);
   if (normalizeRole(role) === "OWNER") throw new PublicActionError("OWNERへの変更は現在サポートしていません。");
   const prisma = await getPrisma();
+  const current = await prisma.teamMember.findUnique({ where: { teamId_userId: { teamId, userId: memberUserId } } }) as { role?: string } | null;
+  if (current?.role === "OWNER") {
+    const ownerCount = await prisma.teamMember.count({ where: { teamId, role: "OWNER", status: "ACTIVE" } }) as number;
+    if (ownerCount <= 1) throw new PublicActionError("最後のOWNERは変更できません。");
+  }
   return prisma.teamMember.update({ where: { teamId_userId: { teamId, userId: memberUserId } }, data: { role } });
 }
 
 export async function removeTeamMember(teamId: string, memberUserId: string, actingUserId: string) {
   await requireTeamRole(teamId, actingUserId, ["OWNER", "ADMIN"]);
   const prisma = await getPrisma();
+  const current = await prisma.teamMember.findUnique({ where: { teamId_userId: { teamId, userId: memberUserId } } }) as { role?: string } | null;
+  if (current?.role === "OWNER") {
+    const ownerCount = await prisma.teamMember.count({ where: { teamId, role: "OWNER", status: "ACTIVE" } }) as number;
+    if (ownerCount <= 1) throw new PublicActionError("最後のOWNERは削除できません。");
+  }
   return prisma.teamMember.delete({ where: { teamId_userId: { teamId, userId: memberUserId } } });
 }
 

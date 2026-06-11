@@ -2,9 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
-import { createGameAction } from "@/app/actions/games";
-import { createPlayerAction } from "@/app/actions/players";
-import { createTeamAction } from "@/app/actions/teams";
+import { migrateLocalDataAction } from "@/app/actions/migration";
 import { downloadText } from "@/components/CsvButtons";
 import { PageShell } from "@/components/PageShell";
 import { loadPlayers, loadTeams, savePlayers, saveTeams } from "@/lib/masterStorage";
@@ -44,28 +42,13 @@ export function DataSettingsClient() {
   function migrateToDb() {
     if (!window.confirm("ローカル保存データをDBへコピーします。重複する可能性があるため、先にJSONバックアップを保存してください。移行後もlocalStorageは自動削除しません。")) return;
     startTransition(async () => {
-      let ok = 0;
-      let failed = 0;
       setMessage("DB移行中です。");
-      for (const team of loadTeams()) {
-        const formData = new FormData();
-        Object.entries(team).forEach(([key, value]) => formData.set(key, String(value ?? "")));
-        const result = await createTeamAction(formData);
-        if (result.ok) ok += 1; else failed += 1;
+      const result = await migrateLocalDataAction({ games: loadGames(), teams: loadTeams(), players: loadPlayers() });
+      if (!result.ok) {
+        setMessage(result.error);
+        return;
       }
-      for (const player of loadPlayers()) {
-        const formData = new FormData();
-        Object.entries(player).forEach(([key, value]) => formData.set(key, String(value ?? "")));
-        const result = await createPlayerAction(formData);
-        if (result.ok) ok += 1; else failed += 1;
-      }
-      for (const game of loadGames()) {
-        const formData = new FormData();
-        formData.set("payloadJson", JSON.stringify(game));
-        const result = await createGameAction(formData);
-        if (result.ok) ok += 1; else failed += 1;
-      }
-      setMessage(`DB移行を実行しました。成功 ${ok}件 / 失敗 ${failed}件。localStorageは削除していません。`);
+      setMessage(`DB移行を実行しました。新規作成 ${result.created}件 / 既存スキップ ${result.skipped}件 / 失敗 ${result.failed}件。localStorageは削除していません。`);
     });
   }
 

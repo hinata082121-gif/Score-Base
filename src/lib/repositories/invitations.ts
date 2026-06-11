@@ -17,6 +17,12 @@ export async function createInvitation(teamId: string, role: TeamRole, userId: s
   });
 }
 
+export async function listInvitationsForTeam(teamId: string, userId: string) {
+  await requireTeamRole(teamId, userId, ["OWNER", "ADMIN"]);
+  const prisma = await getPrisma();
+  return prisma.invitation.findMany({ where: { teamId }, orderBy: { createdAt: "desc" } });
+}
+
 export async function getInvitationByCode(codeValue: string) {
   const prisma = await getPrisma();
   return prisma.invitation.findUnique({ where: { code: codeValue }, include: { team: true } });

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deleteGameAction, duplicateGameAction } from "@/app/actions/games";
+import { saveExportSnapshotAction } from "@/app/actions/exportSnapshots";
 import { CsvDownloadButton } from "@/components/CsvButtons";
 import { PageShell } from "@/components/PageShell";
 import { ShareButton } from "@/components/ShareButton";
@@ -30,6 +31,18 @@ export function GameDetailClient({ id, initialGame, dbEnabled = false }: { id: s
 
   const score = scoreFor(game);
   const shareText = `Score Baseで記録しました\n${game.awayTeamName} vs ${game.homeTeamName}\n${game.gameDate} / ${game.venue || "-"}\n${score.away} - ${score.home}\n#ScoreBase #野球観戦記録`;
+
+  async function recordExport(type: "CSV" | "SHARE_TEXT", fileName: string) {
+    if (!dbEnabled || !game) return;
+    const result = await saveExportSnapshotAction({
+      gameId: game.id,
+      type,
+      fileName,
+      style: "SIMPLE",
+      dataJson: JSON.stringify({ gameTitle: `${game.awayTeamName} vs ${game.homeTeamName}`, gameDate: game.gameDate, score, type, createdAt: new Date().toISOString() }),
+    });
+    if (!result.ok) console.warn("ExportSnapshot保存に失敗しました。", result.error);
+  }
 
   function duplicate() {
     if (!game) return;
@@ -106,8 +119,8 @@ export function GameDetailClient({ id, initialGame, dbEnabled = false }: { id: s
           <button disabled={isPending} className="rounded-md bg-red-50 px-4 py-3 text-sm font-bold text-red-700 disabled:opacity-50" onClick={remove}>削除</button>
           {game.mode === "SCOREBOOK" ? <Link className="rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white" href={`/games/${game.id}/scorebook`}>スコアブック表示</Link> : null}
           <Link className="rounded-md bg-amber-600 px-4 py-3 text-sm font-bold text-white" href={`/games/${game.id}/export`}>出力画面</Link>
-          <CsvDownloadButton filename={`score-base-scorebook-${game.id}.csv`} getCsv={() => exportPlateAppearancesCsv(game)} label="スコアブックCSV" />
-          <ShareButton text={shareText} url={typeof window !== "undefined" ? window.location.href : undefined} />
+          <CsvDownloadButton filename={`score-base-scorebook-${game.id}.csv`} getCsv={() => exportPlateAppearancesCsv(game)} label="スコアブックCSV" onDownload={() => recordExport("CSV", `score-base-scorebook-${game.id}.csv`)} />
+          <ShareButton text={shareText} url={typeof window !== "undefined" ? window.location.href : undefined} onShared={() => recordExport("SHARE_TEXT", "share-text.txt")} />
         </div>
       </div>
     </PageShell>

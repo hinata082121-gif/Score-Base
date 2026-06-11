@@ -46,6 +46,7 @@ model Team {
   primaryColor String?
   memo      String?
   visibility String      @default("PRIVATE")
+  sourceLocalId String?
   players   Player[]
   gameTeams GameTeam[]
   homeGames Game[]       @relation("HomeTeam")
@@ -60,6 +61,7 @@ model Team {
   @@index([name])
   @@index([category])
   @@index([visibility])
+  @@index([ownerId, sourceLocalId])
 }
 
 model Player {
@@ -79,6 +81,7 @@ model Player {
   primaryPosition String?
   memo           String?
   visibility     String            @default("PRIVATE")
+  sourceLocalId  String?
   lineupEntries  LineupEntry[]
   battingRecords PlateAppearance[] @relation("Batter")
   pitchingRecords PlateAppearance[] @relation("Pitcher")
@@ -89,6 +92,8 @@ model Player {
   @@index([teamId])
   @@index([ownerId])
   @@index([visibility])
+  @@index([ownerId, sourceLocalId])
+  @@index([teamId, sourceLocalId])
 }
 
 model Game {
@@ -131,6 +136,7 @@ model Game {
   homeScore        Int?
   awayScore        Int?
   visibility       String            @default("PRIVATE")
+  sourceLocalId    String?
   gameTeams        GameTeam[]
   lineups          LineupEntry[]
   inningScores     InningScore[]
@@ -147,6 +153,7 @@ model Game {
   @@index([createdById])
   @@index([updatedById])
   @@index([visibility])
+  @@index([ownerId, sourceLocalId])
 }
 
 model TeamMember {

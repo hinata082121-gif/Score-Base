@@ -4,7 +4,7 @@ import { Copy, Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { deploymentErrorGuidance } from "@/lib/errorGuidance";
 
-export function ShareButton({ text, url }: { text: string; url?: string }) {
+export function ShareButton({ text, url, onShared }: { text: string; url?: string; onShared?: () => void | Promise<void> }) {
   const [canShare, setCanShare] = useState(false);
 
   useEffect(() => {
@@ -16,6 +16,7 @@ export function ShareButton({ text, url }: { text: string; url?: string }) {
     if (canShare) {
       try {
         await navigator.share({ text, url });
+        await onShared?.();
         return;
       } catch {
         // Fall back to clipboard below.
@@ -23,6 +24,7 @@ export function ShareButton({ text, url }: { text: string; url?: string }) {
     }
     try {
       await navigator.clipboard.writeText(fullText);
+      await onShared?.();
       window.alert("共有テキストをコピーしました。");
     } catch {
       window.alert(`共有テキストのコピーに失敗しました。${deploymentErrorGuidance("共有")}`);

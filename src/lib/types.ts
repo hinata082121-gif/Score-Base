@@ -123,6 +123,7 @@ export type RunnerState = {
 
 export type ScoreBaseGame = {
   id: string;
+  sourceLocalId?: string;
   mode: GameMode;
   gameDate: string;
   venue: string;

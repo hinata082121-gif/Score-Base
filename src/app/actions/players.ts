@@ -17,6 +17,7 @@ function data(formData: FormData) {
     battingSide: String(formData.get("battingSide") ?? "UNKNOWN"),
     primaryPosition: String(formData.get("primaryPosition") ?? ""),
     memo: String(formData.get("memo") ?? ""),
+    sourceLocalId: String(formData.get("sourceLocalId") ?? "") || undefined,
   };
 }
 

@@ -90,8 +90,9 @@
 
 - ログイン済みであることを確認します。未ログイン時はゲストモードとしてlocalStorage保存になります。
 - `/settings/deployment` でPrisma接続と必須テーブル診断が成功しているか確認します。
+- v0.7.1以降は `sourceLocalId` カラムが必要です。本番DBへ `npm run prisma:migrate:deploy` または `npx prisma migrate deploy` を適用します。
 - `/settings/data` でJSONバックアップを保存してから「DB保存へ移行」を実行します。
-- v0.7.0ではsourceLocalIdカラムを追加していないため、同じlocalStorageデータを複数回移行すると重複する可能性があります。
+- 同じ `sourceLocalId` が既にDBにある場合は新規作成せずスキップします。
 - 移行後もlocalStorageは自動削除されません。DB側を確認してから、必要に応じてユーザー操作で削除します。
 
 ## 権限エラーになる
@@ -101,3 +102,10 @@
 - 選手作成・編集はowner本人、またはチームのOWNER / ADMIN / EDITORのみです。
 - スコアブック入力はowner本人、またはチームのSCORER以上を想定します。
 - UIボタンの表示だけでなく、Server Action内でも認証・認可を検証します。
+
+## ExportSnapshotが保存されない
+
+- ExportSnapshot保存はログイン済みかつDB保存済みGameのみ対象です。
+- localStorage保存のゲストデータでは保存しません。
+- 保存に失敗してもCSV/PNG/共有自体は止めません。
+- 本番DBにv0.7.1 migrationが未適用の場合、関連する保存処理が失敗する可能性があります。

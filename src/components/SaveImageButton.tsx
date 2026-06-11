@@ -4,7 +4,7 @@ import { toPng } from "html-to-image";
 import { Download } from "lucide-react";
 import { deploymentErrorGuidance } from "@/lib/errorGuidance";
 
-export function SaveImageButton({ targetId, filename }: { targetId: string; filename: string }) {
+export function SaveImageButton({ targetId, filename, onSaved }: { targetId: string; filename: string; onSaved?: () => void | Promise<void> }) {
   async function save() {
     const node = document.getElementById(targetId);
     if (!node) {
@@ -22,6 +22,7 @@ export function SaveImageButton({ targetId, filename }: { targetId: string; file
       link.download = filename;
       link.href = dataUrl;
       link.click();
+      await onSaved?.();
     } catch {
       window.alert(`画像保存に失敗しました。${deploymentErrorGuidance("画像 PNG")}`);
     }
