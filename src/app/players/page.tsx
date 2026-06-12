@@ -1,10 +1,12 @@
 import { getCurrentUserOrNull } from "@/lib/auth/serverAuth";
 import { listPlayersForUser } from "@/lib/repositories/players";
 import { listTeamsForUser } from "@/lib/repositories/teams";
+import { canManagePlayers } from "@/lib/auth/permissions";
 import { PlayersClient } from "./PlayersClient";
 
 type PlayerRow = {
   id?: string;
+  ownerId?: string | null;
   teamId?: string | null;
   team?: { name?: string | null } | null;
   name?: string | null;
@@ -21,6 +23,7 @@ type PlayerRow = {
   updatedAt?: Date;
 };
 type TeamRow = { id?: string; name?: string | null };
+type TeamWithMembers = TeamRow & { members?: Array<{ userId?: string | null; role?: string | null; status?: string | null }> };
 type ThrowingHand = "RIGHT" | "LEFT" | "BOTH" | "UNKNOWN";
 type BattingSide = "RIGHT" | "LEFT" | "SWITCH" | "UNKNOWN";
 
@@ -35,11 +38,13 @@ function battingSide(value?: string | null): BattingSide {
 export default async function PlayersPage() {
   const user = await getCurrentUserOrNull();
   const dbPlayers = user ? await listPlayersForUser(user.id) as PlayerRow[] : [];
-  const dbTeams = user ? await listTeamsForUser(user.id) as TeamRow[] : [];
+  const dbTeams = user ? await listTeamsForUser(user.id) as TeamWithMembers[] : [];
+  const editableTeamIds = new Set(dbTeams.filter((team) => team.members?.some((member) => member.userId === user?.id && member.status === "ACTIVE" && canManagePlayers(member.role ?? undefined))).map((team) => String(team.id ?? "")));
   return <PlayersClient dbPlayers={dbPlayers.map((player) => ({
     id: String(player.id ?? ""),
     teamId: player.teamId ?? "",
     teamName: player.team?.name ?? "",
+    canEdit: Boolean(player.ownerId && player.ownerId === user?.id) || Boolean(player.teamId && editableTeamIds.has(player.teamId)),
     name: player.name ?? "",
     kana: player.kana ?? "",
     number: player.number ?? "",

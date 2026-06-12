@@ -28,10 +28,11 @@ function battingSide(value?: string | null): BattingSide {
   return value === "RIGHT" || value === "LEFT" || value === "SWITCH" || value === "UNKNOWN" ? value : "UNKNOWN";
 }
 
-export default async function EditPlayerPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditPlayerPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ returnTo?: string }> }) {
   const { id } = await params;
+  const query = await searchParams;
   const user = await getCurrentUserOrNull();
   const player = user ? await getPlayerForUser(id, user.id).catch(() => null) as PlayerRow | null : null;
   const teams = user ? await listTeamsForUser(user.id) as TeamRow[] : [];
-  return <PlayerFormClient id={id} dbEnabled={Boolean(player)} dbTeams={teams.map((team) => ({ id: String(team.id ?? ""), name: team.name ?? "" })).filter((team) => team.id)} initialPlayer={player ? { teamId: player.teamId ?? "", name: player.name ?? "", kana: player.kana ?? "", number: player.number ?? "", throwingHand: throwingHand(player.throwingHand ?? player.throws), battingSide: battingSide(player.battingSide ?? player.bats), primaryPosition: player.primaryPosition ?? player.primaryPos ?? "", memo: player.memo ?? "" } : undefined} />;
+  return <PlayerFormClient id={id} dbEnabled={Boolean(player)} dbTeams={teams.map((team) => ({ id: String(team.id ?? ""), name: team.name ?? "" })).filter((team) => team.id)} initialPlayer={player ? { teamId: player.teamId ?? "", name: player.name ?? "", kana: player.kana ?? "", number: player.number ?? "", throwingHand: throwingHand(player.throwingHand ?? player.throws), battingSide: battingSide(player.battingSide ?? player.bats), primaryPosition: player.primaryPosition ?? player.primaryPos ?? "", memo: player.memo ?? "" } : undefined} returnTo={query?.returnTo ?? ""} />;
 }

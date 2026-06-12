@@ -61,3 +61,11 @@ Server Actions must enforce these rules. UI button visibility is only a convenie
 - After game start, the UI does not offer normal lineup editing.
 - If a Game already has PlateAppearance rows, repository logic rejects destructive LineupEntry changes even for OWNER / ADMIN / EDITOR / SCORER.
 - Pinch hitter, defensive substitution, and pitching change workflows are planned as a separate player-substitution phase.
+
+## v0.7.6 Player Management Notes
+
+- OWNER / ADMIN / EDITOR can create, edit, and delete players attached to their team.
+- SCORER can view team players and use them for scorebook input, but cannot edit player master data.
+- VIEWER can view team players but cannot edit player master data.
+- Player create/update/delete Server Actions enforce these rules through TeamMember role checks.
+- Team-created players keep both `teamId` and `ownerId`; `/players` lists both owner-created players and active TeamMember team players.

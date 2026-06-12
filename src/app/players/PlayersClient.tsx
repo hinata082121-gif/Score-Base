@@ -8,7 +8,7 @@ import { PageShell } from "@/components/PageShell";
 import { exportPlayersCsv } from "@/lib/repositories/csv";
 import { deletePlayerMaster, loadPlayers, loadTeams } from "@/lib/masterStorage";
 
-type ListedPlayer = ReturnType<typeof loadPlayers>[number] & { storage: "DB" | "LOCAL" };
+type ListedPlayer = ReturnType<typeof loadPlayers>[number] & { storage: "DB" | "LOCAL"; canEdit?: boolean };
 type DbPlayerInput = Omit<ListedPlayer, "storage">;
 type ListedTeam = { id: string; name: string };
 
@@ -69,14 +69,14 @@ export function PlayersClient({ dbPlayers, dbTeams, dbEnabled }: { dbPlayers: Db
             <article key={player.id} className="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-bold text-emerald-700">{player.teamName || "未所属"} / #{player.number || "-"} / {player.storage === "DB" ? "DB保存" : "ローカル保存"}</p>
+                  <p className="text-sm font-bold text-emerald-700">{player.teamName || "未所属"} / #{player.number || "-"} / {player.storage === "DB" ? "DB保存" : "ローカル保存"} {player.teamId ? "/ チーム所属" : ""}</p>
                   <h2 className="mt-1 text-lg font-black text-stone-950">{player.name}</h2>
                   <p className="text-sm text-stone-600">投: {player.throwingHand} / 打: {player.battingSide} / 守備: {player.primaryPosition || "-"}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Link className="rounded-md bg-emerald-700 px-3 py-2 text-sm font-bold text-white" href={`/players/${player.id}`}>詳細</Link>
-                  <Link className="rounded-md bg-stone-100 px-3 py-2 text-sm font-bold text-stone-800" href={`/players/${player.id}/edit`}>編集</Link>
-                  <button disabled={isPending} className="rounded-md bg-red-50 px-3 py-2 text-sm font-bold text-red-700 disabled:opacity-50" onClick={() => remove(player.id)}>削除</button>
+                  {player.storage === "LOCAL" ? <Link className="rounded-md bg-emerald-700 px-3 py-2 text-sm font-bold text-white" href={`/players/${player.id}`}>詳細</Link> : null}
+                  {player.storage === "LOCAL" || player.canEdit ? <Link className="rounded-md bg-stone-100 px-3 py-2 text-sm font-bold text-stone-800" href={`/players/${player.id}/edit${player.teamId ? `?returnTo=${encodeURIComponent(`/teams/${player.teamId}`)}` : ""}`}>編集</Link> : <span className="rounded-md bg-stone-50 px-3 py-2 text-sm font-bold text-stone-500">閲覧のみ</span>}
+                  {player.storage === "LOCAL" || player.canEdit ? <button disabled={isPending} className="rounded-md bg-red-50 px-3 py-2 text-sm font-bold text-red-700 disabled:opacity-50" onClick={() => remove(player.id)}>削除</button> : null}
                 </div>
               </div>
             </article>

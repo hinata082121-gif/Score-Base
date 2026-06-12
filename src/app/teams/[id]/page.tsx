@@ -1,4 +1,5 @@
 import { TeamDetailClient } from "./TeamDetailClient";
+import { canManagePlayers } from "@/lib/auth/permissions";
 import { getCurrentUserOrNull } from "@/lib/auth/serverAuth";
 import { getTeamForUser } from "@/lib/repositories/teams";
 
@@ -17,8 +18,14 @@ type TeamRow = {
     number?: string | null;
     primaryPosition?: string | null;
     primaryPos?: string | null;
+    throwingHand?: string | null;
+    throws?: string | null;
+    battingSide?: string | null;
+    bats?: string | null;
+    memo?: string | null;
     teamId?: string | null;
   }>;
+  members?: Array<{ userId?: string | null; role?: string | null; status?: string | null }>;
   homeGames?: unknown[];
   awayGames?: unknown[];
   teamGames?: unknown[];
@@ -36,6 +43,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
   const { id } = await params;
   const user = await getCurrentUserOrNull();
   const team = user ? await getTeamForUser(id, user.id).catch(() => null) as TeamRow | null : null;
+  const memberRole = team?.members?.find((member) => member.userId === user?.id && member.status === "ACTIVE")?.role;
   return <TeamDetailClient id={id} initialTeam={team ? {
     id: String(team.id ?? ""),
     name: team.name ?? "",
@@ -56,11 +64,20 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
       kana: player.kana ?? "",
       number: player.number ?? "",
       primaryPosition: player.primaryPosition ?? player.primaryPos ?? "",
-      throwingHand: "UNKNOWN" as const,
-      battingSide: "UNKNOWN" as const,
-      memo: "",
+      throwingHand: throwingHand(player.throwingHand ?? player.throws),
+      battingSide: battingSide(player.battingSide ?? player.bats),
+      memo: player.memo ?? "",
       createdAt: "",
       updatedAt: "",
     })).filter((player) => player.id),
+    canManagePlayers: canManagePlayers(memberRole ?? undefined),
   } : null} />;
+}
+
+function throwingHand(value?: string | null): "RIGHT" | "LEFT" | "BOTH" | "UNKNOWN" {
+  return value === "RIGHT" || value === "LEFT" || value === "BOTH" || value === "UNKNOWN" ? value : "UNKNOWN";
+}
+
+function battingSide(value?: string | null): "RIGHT" | "LEFT" | "SWITCH" | "UNKNOWN" {
+  return value === "RIGHT" || value === "LEFT" || value === "SWITCH" || value === "UNKNOWN" ? value : "UNKNOWN";
 }

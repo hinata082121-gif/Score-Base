@@ -537,3 +537,28 @@ v0.7.5 verification checklist:
 - Confirm plate appearance finalization still saves PlateAppearance and PitchEvent.
 - Confirm DB save and localStorage guest save both keep data after reload.
 - Resume User B / CSV / share smoke tests after the v0.7.5 flow passes.
+
+## v0.7.6 Team Player Management
+
+Date: 2026-06-12
+
+Implemented player-flow changes:
+
+- Player create/update/delete revalidates `/players` and the related `/teams/[teamId]` page.
+- Player creation returns the created player id and display fields to the client.
+- New player registration shows a completion panel with links to return to the team, edit the created player, or continue creating another player.
+- Team detail player rows show edit links for users with OWNER / ADMIN / EDITOR role and read-only labels for SCORER / VIEWER.
+- `/players` includes players owned by the user and players attached to teams where the user is an active TeamMember.
+
+v0.7.6 verification checklist:
+
+- Create a player from `/teams/[id]`.
+- Confirm the completion panel appears.
+- Confirm "チーム管理画面に戻る" opens `/teams/[id]`.
+- Confirm "登録した選手情報の修正" opens `/players/[playerId]/edit?returnTo=/teams/[id]`.
+- Confirm "続けて他の選手を登録" keeps the team selected and clears player fields.
+- Confirm `/players` opens without an error and shows the team player.
+- Confirm `/teams/[id]` shows the player and edit link for OWNER / ADMIN / EDITOR.
+- Confirm SCORER / VIEWER cannot edit team players.
+- Confirm detailed scorebook lineup candidates include the team player after reload.
+- Confirm `Player.teamId` and `Player.ownerId` are populated in Supabase.

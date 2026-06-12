@@ -1,5 +1,6 @@
 import { getMembership, PublicActionError, requireTeamRole } from "@/lib/auth/serverAuth";
 import { getPrisma } from "@/lib/db/prisma";
+import { recordAuditLog } from "@/lib/repositories/auditLogs";
 
 type PlayerRow = { id: string; ownerId?: string | null; teamId?: string | null };
 
@@ -65,7 +66,7 @@ export async function createPlayerForUser(input: DbPlayerInput, userId: string) 
     });
     if (existing) return existing;
   }
-  return prisma.player.create({
+  const player = await prisma.player.create({
     data: {
       ...input,
       ownerId: userId,
@@ -76,6 +77,13 @@ export async function createPlayerForUser(input: DbPlayerInput, userId: string) 
     },
     include: includePlayer,
   });
+  await recordAuditLog({ userId, teamId: input.teamId, action: "PLAYER_CREATE", resourceType: "Player", resourceId: (player as { id?: string }).id, detail: input.name });
+  return player;
+}
+
+export async function createPlayerForTeam(teamId: string, input: DbPlayerInput, userId: string) {
+  await requireTeamRole(teamId, userId, ["OWNER", "ADMIN", "EDITOR"]);
+  return createPlayerForUser({ ...input, teamId }, userId);
 }
 
 export async function updatePlayerForUser(playerId: string, input: DbPlayerInput, userId: string) {
@@ -83,7 +91,7 @@ export async function updatePlayerForUser(playerId: string, input: DbPlayerInput
   const current = await prisma.player.findUnique({ where: { id: playerId } }) as PlayerRow | null;
   if (!(await canEditPlayer(current, userId))) throw new PublicActionError("この選手を編集する権限がありません。");
   if (input.teamId) await requireTeamRole(input.teamId, userId, ["OWNER", "ADMIN", "EDITOR"]);
-  return prisma.player.update({
+  const player = await prisma.player.update({
     where: { id: playerId },
     data: {
       ...input,
@@ -93,13 +101,17 @@ export async function updatePlayerForUser(playerId: string, input: DbPlayerInput
     },
     include: includePlayer,
   });
+  await recordAuditLog({ userId, teamId: input.teamId ?? current?.teamId, action: "PLAYER_UPDATE", resourceType: "Player", resourceId: playerId, detail: input.name });
+  return player;
 }
 
 export async function deletePlayerForUser(playerId: string, userId: string) {
   const prisma = await getPrisma();
   const current = await prisma.player.findUnique({ where: { id: playerId } }) as PlayerRow | null;
   if (!(await canEditPlayer(current, userId))) throw new PublicActionError("この選手を削除する権限がありません。");
-  return prisma.player.delete({ where: { id: playerId } });
+  const player = await prisma.player.delete({ where: { id: playerId } });
+  await recordAuditLog({ userId, teamId: current?.teamId, action: "PLAYER_DELETE", resourceType: "Player", resourceId: playerId });
+  return player;
 }
 
 export const getPlayers = listPlayersForUser;

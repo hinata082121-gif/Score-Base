@@ -146,3 +146,18 @@
 - 詳細記録モードのlive inputでは、上部に1〜9回とR/H/Eの固定スコアボードを表示します。
 - スマホ幅ではチーム名を短く表示し、現在イニングと攻撃チームを強調します。
 - 横overflowが出る場合は、スコアボード内だけ横スクロールし、ページ全体が横に広がっていないか確認します。
+
+## チームで登録した選手が /players に出ない
+
+- `Player.ownerId` が作成ユーザーに入っているか確認します。
+- `Player.teamId` がチームIDに入っているか確認します。
+- `/players` はowner本人のPlayerと、active TeamMemberとして所属しているTeamのPlayerを表示します。
+- `team` relationがnullでもUIは落ちない想定です。`team.name` の直接参照を追加しないでください。
+- Player作成・編集・削除後は `/players` と `/teams/[teamId]` を `revalidatePath` します。
+
+## チーム詳細から選手を編集できない
+
+- TeamMember roleを確認します。OWNER / ADMIN / EDITOR は選手作成・編集できます。
+- SCORER / VIEWER は選手編集不可です。SCORERはスコアブック入力権限であり、選手マスタ編集権限ではありません。
+- UIに編集ボタンが出ていても、Server Action側の権限チェックが最終判断です。
+- 編集後にチーム詳細へ戻す場合は `/players/[id]/edit?returnTo=/teams/[teamId]` を使います。
