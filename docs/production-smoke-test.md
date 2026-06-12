@@ -585,3 +585,81 @@ Production checks still requiring manual access:
 - Exact deployed commit hash if the Vercel public page does not expose build metadata.
 - Supabase row-level confirmation for `Player.ownerId`, `Player.teamId`, and TeamMember role transitions.
 - Full two-user OWNER / VIEWER / SCORER / EDITOR / ADMIN role sweep.
+
+## v0.7.8 Production Reflection and Mobile Scorebook Check
+
+Date: 2026-06-12
+
+Baseline:
+
+- Local branch: `main`.
+- Local latest commit: `9a8a710 fix: support db player detail pages`.
+- `origin/main`: `9a8a710ff6f46dc802acc7ceea688b39f817925a`.
+- Production pages checked: `/`, `/settings/deployment`, `/settings/release-checklist`, `/players`, `/teams`, `/games`.
+- Public HTML does not expose a deployment commit hash, so the exact Vercel Production commit must be confirmed in Vercel Dashboard. Production behavior matches v0.7.7 Player detail changes.
+
+Production diagnostics:
+
+- `/settings/deployment`: opened successfully.
+- `DATABASE_URL`: configured.
+- `AUTH_SECRET`: configured.
+- Prisma connection: result shown as success.
+- Required table diagnostic: success.
+- Auth URL mismatch: not observed.
+- Console error/warn across checked public pages: 0.
+- React hydration error #418: not observed.
+
+DB Player flow checked in Production:
+
+- Created DB team `SB_TEST_TEAM_20260612_V078`.
+- Created DB player `SB_TEST_PLAYER_20260612_V078` from that team detail page.
+- Player creation completion panel showed all three actions: return to team management, edit created player, and continue creating another player.
+- Team detail showed the player in the player list.
+- `/players` showed the DB player with `DB保存 / チーム所属`.
+- `/players/[id]?returnTo=/teams/[teamId]` showed DB player detail, team name, `DB保存`, and owner permission state.
+- Team detail player row showed detail link and edit link with `returnTo=/teams/[teamId]`.
+- Saving from the edit page returned to the team detail page.
+- Console error/warn during this flow: 0.
+
+Mobile scorebook UI checked in Production:
+
+- Checked existing scorebook input on PC width, iPhone SE width, and iPhone 11 width.
+- No horizontal page overflow was observed.
+- Console error/warn: 0.
+- Sticky scorebook area was present.
+- Scoreboard showed team rows, innings 1-9, and R/H/E.
+- Current attacking team was visually marked.
+- Pitcher vs batter card, B/S/O controls, runner display, pitch history, pitch record buttons, and confirmation flow were present.
+- Pitch detail step showed speed controls, pitch type buttons, and 3x3 course grid.
+
+Scorebook start flow checked in Production:
+
+- New scorebook page opened in DB save mode.
+- Details step and details confirmation step were present.
+- Details confirmation had a back-to-edit action and a continue-to-lineup action.
+- Lineup input step showed registered player candidates, including `SB_TEST_PLAYER_20260612_V078`.
+- Lineup confirmation step was present.
+- Lineup confirmation displayed warnings for fewer than 9 starters and the note that destructive lineup changes are restricted after game start.
+- The full game start and live DB save path was not completed in this pass because the quick smoke lineup intentionally left starter names empty.
+
+Persistence and export status:
+
+- Existing localStorage scorebook export page showed PNG and scorebook CSV actions without console errors.
+- DB-backed ExportSnapshot increment was not verified in this pass because a complete DB game with a finished live input flow was not created.
+- RunnerEvent dedicated persistence is not implemented as a separate user-facing flow. Runner state is currently retained through `PlateAppearance.baseStateBefore` and `PlateAppearance.baseStateAfter`; dedicated `RunnerEvent` save verification remains next phase.
+
+User B / role smoke status:
+
+- OWNER behavior was partially verified with the current authenticated smoke user by creating a team/player and editing player data.
+- SCORER and VIEWER behavior was not executed in this pass because it requires a second authenticated test user session and invitation acceptance.
+- Next manual checks: User A creates invitation, User B accepts as VIEWER, then User A changes User B through SCORER / EDITOR / ADMIN and verifies read/write boundaries.
+
+Local command results:
+
+- `npm run build`: passed.
+- `npm run lint`: passed.
+- `npx prisma validate`: passed.
+- `npm audit`: 5 moderate findings remain; available fixes require `npm audit fix --force`, which is not applied.
+- `npx prisma migrate status`: not run because the local `DATABASE_URL` was present but not safely classifiable without exposing or trusting a secret value.
+
+No code changes were required by this v0.7.8 pass. Documentation was updated to record completed and pending smoke checks.

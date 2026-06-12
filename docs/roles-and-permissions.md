@@ -77,3 +77,11 @@ Server Actions must enforce these rules. UI button visibility is only a convenie
 - PUBLIC players may be viewed without team membership after authentication resolves the request path.
 - OWNER / ADMIN / EDITOR can use detail and edit links from `/teams/[id]`; SCORER / VIEWER get detail access and read-only labels.
 - `returnTo` is accepted only as an internal path and is used to return from player detail or edit pages to the team detail page.
+
+## v0.7.8 Production Role Status
+
+- OWNER-equivalent behavior was verified in Production by creating a DB team and DB player, opening player detail, and saving from the edit route back to the team detail page.
+- Registered DB players were confirmed as scorebook lineup candidates when their team is selected.
+- SCORER and VIEWER were not re-tested in this pass because a second authenticated test user session is required.
+- Next manual role test: User B accepts a VIEWER invitation, then User A changes User B through SCORER, EDITOR, and ADMIN while checking scorebook input, player/team editing, invitation management, and Game deletion boundaries.
+- Server Action authorization remains the source of truth; UI visibility alone is not sufficient.

@@ -44,6 +44,15 @@ https://score-base.vercel.app
 - DB保存済みPRIVATE Playerは、所有者、PUBLIC公開、または所属チームのactive TeamMemberだけが閲覧できます。編集はOWNER / ADMIN / EDITOR、または所有者に限定します。
 - schema変更なし。v0.7.7追加migrationはありません。
 
+## v0.7.8 Production Smoke
+
+- Production `/settings/deployment` で `DATABASE_URL`、`AUTH_SECRET`、Prisma接続、必須テーブル診断の成功を確認しました。
+- ProductionでDB保存チーム `SB_TEST_TEAM_20260612_V078` とDB保存Player `SB_TEST_PLAYER_20260612_V078` を作成し、完了画面3導線、`/players` 表示、DB Player詳細、チーム詳細からの詳細/編集/returnToを確認しました。
+- 詳細スコアブック入力はPC幅、iPhone SE相当、iPhone 11相当で確認し、固定スコアボード、1〜9回/R/H/E、現在攻撃チーム強調、投手vs打者、B/S/O、走者、投球詳細、球速、球種、3x3コース、確認画面を確認しました。
+- 新規詳細スコアブックでは試合詳細確認、スタメン入力、スタメン確認、破壊的変更制限の警告、登録済みPlayer候補表示を確認しました。
+- User Bの全role実データテスト、DB保存済みGameのExportSnapshot増加確認、RunnerEvent専用保存は未完了です。Runner stateは現状 `PlateAppearance.baseStateBefore/baseStateAfter` で保持し、RunnerEvent専用保存は次フェーズです。
+- schema変更なし。v0.7.8追加migrationはありません。
+
 ## v0.2 詳細スコアブック強化
 
 - 詳細スコアブック入力画面の固定サマリー
