@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Save, Trash2 } from "lucide-react";
 import { useTransition } from "react";
 import { createGameAction, updateGameAction } from "@/app/actions/games";
+import { createPlayerAction } from "@/app/actions/players";
+import { createTeamAction } from "@/app/actions/teams";
 import { RunnerDiamond } from "./RunnerDiamond";
+import { SelectOrCreateInput, type SelectOrCreateOption, type SelectOrCreateValue } from "@/components/forms/SelectOrCreateInput";
 import { loadWorkspaceContext } from "@/lib/auth/clientAuth";
 import {
   battedBallTypes,
@@ -21,7 +24,8 @@ import {
   positions,
   statusLabels,
 } from "@/lib/constants";
-import { loadGame, loadSettings, uid, upsertGame } from "@/lib/storage";
+import { loadGame, loadGames, loadSettings, uid, upsertGame } from "@/lib/storage";
+import { loadPlayers, loadTeams, upsertPlayer, upsertTeam } from "@/lib/masterStorage";
 import type { PitchCall, PlateResult, ScoreBaseGame, GameMode, InningScore, PitchEvent, PlateAppearance, RunnerState } from "@/lib/types";
 
 const field = "min-h-11 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-950 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100";
@@ -33,12 +37,21 @@ type PlateAppearanceDraft = Omit<PlateAppearance, "id" | "baseStateBefore" | "ba
 };
 
 type UndoAction = "投球を取り消し" | "打席確定を取り消し";
+type FormStep = "details" | "lineup" | "record";
+type PlateStep = "pitch" | "pitchDetail" | "batting" | "battingDetail" | "runner" | "confirm";
+type TeamOption = SelectOrCreateOption & { homeGround?: string };
+type PlayerOption = SelectOrCreateOption & { teamId?: string; number?: string; position?: string };
+
+const weatherOptions: SelectOrCreateOption[] = ["晴れ", "曇り", "雨", "小雨", "雪", "屋内", "その他"].map((label) => ({ id: label, label }));
+const outcomeOptions = ["未定", "勝ち", "負け", "引き分け", "ノーゲーム", "中止", "延期", "その他"];
 
 function emptyGame(mode: GameMode): ScoreBaseGame {
   const now = new Date().toISOString();
   return {
     id: uid("game"),
     mode,
+    homeTeamId: "",
+    awayTeamId: "",
     gameDate: new Date().toISOString().slice(0, 10),
     venue: "",
     competition: "",
@@ -51,6 +64,7 @@ function emptyGame(mode: GameMode): ScoreBaseGame {
     impressivePlayer: "",
     mvp: "",
     result: "",
+    outcome: "未定",
     photoMemo: "",
     isPublic: false,
     status: "NORMAL",
@@ -91,9 +105,33 @@ function scorebookSideLabel(topBottom: "TOP" | "BOTTOM") {
   return topBottom === "TOP" ? "表" : "裏";
 }
 
-export function GameForm({ mode, editId, initialGame, dbEnabled = false }: { mode: GameMode; editId?: string; initialGame?: ScoreBaseGame | null; dbEnabled?: boolean }) {
+function uniqueOptions(values: string[]): SelectOrCreateOption[] {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).slice(0, 30).map((label) => ({ id: label, label }));
+}
+
+function teamValue(id: string | undefined, name: string, options: TeamOption[]): SelectOrCreateValue {
+  if (id && options.some((option) => option.id === id)) return { mode: "existing", id, label: name };
+  if (name) return { mode: "new", label: name };
+  return { mode: "new", label: "" };
+}
+
+function optionValue(value: string, options: SelectOrCreateOption[], allowNone = false): SelectOrCreateValue {
+  if (!value && allowNone) return { mode: "none", label: "" };
+  const option = options.find((item) => item.label === value);
+  if (option) return { mode: "existing", id: option.id, label: option.label };
+  return { mode: "new", label: value };
+}
+
+export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams = [], dbPlayers = [], dbGames = [] }: { mode: GameMode; editId?: string; initialGame?: ScoreBaseGame | null; dbEnabled?: boolean; dbTeams?: TeamOption[]; dbPlayers?: PlayerOption[]; dbGames?: ScoreBaseGame[] }) {
   const router = useRouter();
   const [game, setGame] = useState<ScoreBaseGame>(() => initialGame ?? emptyGame(mode));
+  const [formStep, setFormStep] = useState<FormStep>("details");
+  const [plateStep, setPlateStep] = useState<PlateStep>("pitch");
+  const [teams, setTeams] = useState<TeamOption[]>(dbTeams);
+  const [players, setPlayers] = useState<PlayerOption[]>(dbPlayers);
+  const [gamesForCandidates, setGamesForCandidates] = useState<ScoreBaseGame[]>(dbGames);
+  const [addNewTeamsToMaster, setAddNewTeamsToMaster] = useState(false);
+  const [addNewPlayersToMaster, setAddNewPlayersToMaster] = useState(false);
   const [savedLabel, setSavedLabel] = useState(dbEnabled ? "DB未保存" : "未保存");
   const [history, setHistory] = useState<ScoreBaseGame[]>([]);
   const [error, setError] = useState("");
@@ -118,12 +156,28 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false }: { mod
   });
   const [draftPitches, setDraftPitches] = useState<PitchEvent[]>([]);
   const [pitchDraft, setPitchDraft] = useState({ speedKmh: "", pitchType: "", course: "" });
+  const [pitchCategory, setPitchCategory] = useState<PitchCall | "BATTER_ACTION" | "OTHER">("BALL");
   const [baseStateBeforeDraft, setBaseStateBeforeDraft] = useState(runnerText(game.runnerState));
   const [lastRunnerMessage, setLastRunnerMessage] = useState("打席結果を選ぶと簡易自動候補を表示します。");
   const settings = useMemo(() => loadSettings(), []);
   const attackingTeam = paDraft.topBottom === "TOP" ? game.awayTeamName || "ビジター" : game.homeTeamName || "ホーム";
   const fieldingTeam = paDraft.topBottom === "TOP" ? game.homeTeamName || "ホーム" : game.awayTeamName || "ビジター";
   const nextUndoAction: UndoAction = draftPitches.length > 0 ? "投球を取り消し" : "打席確定を取り消し";
+  const teamOptions = teams;
+  const venueOptions = useMemo(() => uniqueOptions([...gamesForCandidates.map((item) => item.venue), ...teams.map((team) => team.homeGround ?? "")]), [gamesForCandidates, teams]);
+  const competitionOptions = useMemo(() => uniqueOptions(gamesForCandidates.map((item) => item.competition)), [gamesForCandidates]);
+
+  useEffect(() => {
+    setTeams([
+      ...dbTeams,
+      ...loadTeams().map((team) => ({ id: team.id, label: team.name, helper: team.shortName || team.homeGround, homeGround: team.homeGround })),
+    ]);
+    setPlayers([
+      ...dbPlayers,
+      ...loadPlayers().map((player) => ({ id: player.id, label: player.name, helper: [player.number ? `#${player.number}` : "", player.primaryPosition].filter(Boolean).join(" "), teamId: player.teamId, number: player.number, position: player.primaryPosition })),
+    ]);
+    setGamesForCandidates([...(dbGames ?? []), ...loadGames()]);
+  }, [dbTeams, dbPlayers, dbGames]);
 
   useEffect(() => {
     if (initialGame) {
@@ -156,15 +210,52 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false }: { mod
     setSavedLabel("編集中");
   }
 
-  function submit() {
+  async function createTeamFromName(name: string) {
+    if (!name.trim()) return undefined;
+    if (dbEnabled) {
+      const formData = new FormData();
+      formData.set("name", name.trim());
+      const result = await createTeamAction(formData);
+      return result.ok ? result.id : undefined;
+    }
+    return upsertTeam({ name: name.trim() }).id;
+  }
+
+  async function createMissingPlayers(nextGame: ScoreBaseGame) {
+    if (!addNewPlayersToMaster) return;
+    const known = new Set(players.map((player) => `${player.teamId ?? ""}:${player.label}`));
+    for (const player of nextGame.players) {
+      if (!player.name.trim()) continue;
+      const teamId = player.teamSide === "HOME" ? nextGame.homeTeamId : nextGame.awayTeamId;
+      if (known.has(`${teamId ?? ""}:${player.name}`)) continue;
+      if (dbEnabled) {
+        const formData = new FormData();
+        formData.set("teamId", teamId ?? "");
+        formData.set("name", player.name.trim());
+        formData.set("number", player.number);
+        formData.set("primaryPosition", player.position);
+        await createPlayerAction(formData);
+      } else {
+        upsertPlayer({ teamId: teamId ?? "", name: player.name.trim(), number: player.number, primaryPosition: player.position });
+      }
+      known.add(`${teamId ?? ""}:${player.name}`);
+    }
+  }
+
+  async function submit() {
     const workspace = dbEnabled && !editId ? loadWorkspaceContext() : null;
+    const homeTeamId = game.homeTeamId || (addNewTeamsToMaster && game.homeTeamName ? await createTeamFromName(game.homeTeamName) : "");
+    const awayTeamId = game.awayTeamId || (addNewTeamsToMaster && game.awayTeamName ? await createTeamFromName(game.awayTeamName) : "");
     const normalized = {
       ...game,
       teamId: workspace?.type === "team" ? workspace.teamId : game.teamId,
+      homeTeamId,
+      awayTeamId,
       homeTeamName: game.homeTeamName || "ホーム",
       awayTeamName: game.awayTeamName || "ビジター",
       updatedAt: new Date().toISOString(),
     };
+    await createMissingPlayers(normalized);
     if (dbEnabled) {
       const formData = new FormData();
       formData.set("payloadJson", JSON.stringify(normalized));
@@ -189,6 +280,13 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false }: { mod
 
   function addInning() {
     patch({ inningScores: [...game.inningScores, { inning: game.inningScores.length + 1, top: "", bottom: "" }] });
+  }
+
+  function setTotalScore(side: "HOME" | "AWAY", value: string) {
+    const score = value === "" ? "" : Number(value);
+    patch({
+      inningScores: game.inningScores.map((inning, index) => index === 0 ? { ...inning, [side === "HOME" ? "bottom" : "top"]: score } : { ...inning, [side === "HOME" ? "bottom" : "top"]: index === 0 ? score : 0 }),
+    });
   }
 
   function addBench(side: "HOME" | "AWAY") {
@@ -278,6 +376,8 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false }: { mod
     }));
     setDraftPitches([]);
     setPitchDraft({ speedKmh: "", pitchType: "", course: "" });
+    setPitchCategory("BALL");
+    setPlateStep("pitch");
     setBaseStateBeforeDraft(runnerText(game.runnerState));
     setLastRunnerMessage(pa.outsAfter >= 3 ? "3アウトです。表裏交代候補として、回・表裏・アウトを調整してください。" : "打席を確定しました。次打者へ進みます。");
   }
@@ -344,15 +444,33 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false }: { mod
         {error ? <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p> : null}
       </div>
 
-      <section className="grid gap-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-2">
+      <section className="rounded-md border border-stone-200 bg-white p-3 shadow-sm">
+        <div className="grid grid-cols-3 gap-2 text-xs font-black">
+          {(["details", "lineup", "record"] as FormStep[]).map((step, index) => (
+            <button
+              key={step}
+              type="button"
+              onClick={() => setFormStep(step)}
+              disabled={mode === "WATCH_ONLY" && step !== "details"}
+              className={`min-h-11 rounded-md px-2 ${formStep === step ? "bg-emerald-700 text-white" : "bg-stone-100 text-stone-700 disabled:opacity-40"}`}
+            >
+              {index + 1}. {step === "details" ? "試合詳細" : step === "lineup" ? "スタメン" : "試合記録"}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {formStep === "details" ? <section className="grid gap-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-2">
         <label className={label}>試合日<input className={field} type="date" value={game.gameDate} onChange={(e) => patch({ gameDate: e.target.value })} /></label>
-        <label className={label}>球場<input className={field} value={game.venue} onChange={(e) => patch({ venue: e.target.value })} placeholder="例: 甲子園球場" /></label>
-        <label className={label}>大会名・リーグ名<input className={field} value={game.competition} onChange={(e) => patch({ competition: e.target.value })} /></label>
-        <label className={label}>天気<input className={field} value={game.weather} onChange={(e) => patch({ weather: e.target.value })} /></label>
-        <label className={label}>ビジターチーム<input className={field} value={game.awayTeamName} onChange={(e) => patch({ awayTeamName: e.target.value })} /></label>
-        <label className={label}>ホームチーム<input className={field} value={game.homeTeamName} onChange={(e) => patch({ homeTeamName: e.target.value })} /></label>
-        <label className={label}>応援チーム<input className={field} value={game.favoriteTeamName} onChange={(e) => patch({ favoriteTeamName: e.target.value })} /></label>
-        <label className={label}>試合結果<input className={field} value={game.result} onChange={(e) => patch({ result: e.target.value })} placeholder="例: 3-2 勝利" /></label>
+        <SelectOrCreateInput label="球場" options={venueOptions} value={optionValue(game.venue, venueOptions)} onChange={(value) => patch({ venue: value.label })} placeholder="例: 甲子園球場" />
+        <SelectOrCreateInput label="大会・リーグ" options={competitionOptions} value={optionValue(game.competition, competitionOptions)} onChange={(value) => patch({ competition: value.label })} placeholder="例: 春季リーグ" />
+        <SelectOrCreateInput label="天気" options={weatherOptions} value={optionValue(game.weather, weatherOptions)} onChange={(value) => patch({ weather: value.label })} />
+        <SelectOrCreateInput label="ビジターチーム" required options={teamOptions} value={teamValue(game.awayTeamId, game.awayTeamName, teamOptions)} onChange={(value) => patch({ awayTeamId: value.mode === "existing" ? value.id : "", awayTeamName: value.label })} placeholder="ビジターチーム名" />
+        <SelectOrCreateInput label="ホームチーム" required options={teamOptions} value={teamValue(game.homeTeamId, game.homeTeamName, teamOptions)} onChange={(value) => patch({ homeTeamId: value.mode === "existing" ? value.id : "", homeTeamName: value.label })} placeholder="ホームチーム名" />
+        <SelectOrCreateInput label="応援チーム" allowNone noneLabel="応援チームなし" options={[...teamOptions, { id: "home", label: game.homeTeamName || "ホーム" }, { id: "away", label: game.awayTeamName || "ビジター" }]} value={optionValue(game.favoriteTeamName, teamOptions, true)} onChange={(value) => patch({ favoriteTeamName: value.mode === "none" ? "" : value.label })} placeholder="応援チーム名" />
+        <label className={label}>ビジタースコア<input className={field} type="number" min={0} value={game.inningScores[0]?.top ?? ""} onChange={(e) => setTotalScore("AWAY", e.target.value)} /></label>
+        <label className={label}>ホームスコア<input className={field} type="number" min={0} value={game.inningScores[0]?.bottom ?? ""} onChange={(e) => setTotalScore("HOME", e.target.value)} /></label>
+        <label className={label}>勝敗<select className={field} value={game.outcome ?? game.result ?? "未定"} onChange={(e) => patch({ outcome: e.target.value, result: e.target.value })}>{outcomeOptions.map((value) => <option key={value}>{value}</option>)}</select></label>
         <label className={label}>試合状態<select className={field} value={game.status} onChange={(e) => patch({ status: e.target.value as ScoreBaseGame["status"] })}>{Object.entries(statusLabels).map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
         <label className={label}>理由メモ<input className={field} value={game.statusReason} onChange={(e) => patch({ statusReason: e.target.value })} placeholder="コールド・中断などの理由" /></label>
         <label className={label}>開始時刻<input className={field} type="time" value={game.startTime} onChange={(e) => patch({ startTime: e.target.value })} /></label>
@@ -363,9 +481,15 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false }: { mod
         <label className={label}>今日のMVP<input className={field} value={game.mvp} onChange={(e) => patch({ mvp: e.target.value })} /></label>
         <label className={`${label} sm:col-span-2`}>写真メモURLまたはテキスト<input className={field} value={game.photoMemo} onChange={(e) => patch({ photoMemo: e.target.value })} /></label>
         <label className="flex items-center gap-3 text-sm font-bold text-stone-700"><input type="checkbox" checked={game.isPublic} onChange={(e) => patch({ isPublic: e.target.checked })} /> 公開フラグ</label>
-      </section>
+        <label className="flex items-center gap-3 text-sm font-bold text-stone-700"><input type="checkbox" checked={addNewTeamsToMaster} onChange={(e) => setAddNewTeamsToMaster(e.target.checked)} /> 新規入力チームをチームマスタにも追加</label>
+        {mode !== "WATCH_ONLY" ? (
+          <div className="flex justify-end sm:col-span-2">
+            <button type="button" className={`${btn} bg-emerald-700 text-white`} onClick={() => setFormStep("lineup")}>次へ</button>
+          </div>
+        ) : null}
+      </section> : null}
 
-      {game.mode !== "WATCH_ONLY" ? (
+      {game.mode !== "WATCH_ONLY" && formStep === "lineup" ? (
         <>
           <section className="space-y-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
@@ -375,14 +499,22 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false }: { mod
                 <button type="button" className={`${btn} bg-stone-100 text-stone-700`} onClick={() => addBench("HOME")}><Plus className="h-4 w-4" /> ホーム控え</button>
               </div>
             </div>
-            {(["AWAY", "HOME"] as const).map((side) => (
+            <label className="flex items-center gap-3 text-sm font-bold text-stone-700"><input type="checkbox" checked={addNewPlayersToMaster} onChange={(e) => setAddNewPlayersToMaster(e.target.checked)} /> 新規入力選手を選手マスタにも追加</label>
+            {(["AWAY", "HOME"] as const).map((side) => {
+              const sideTeamId = side === "HOME" ? game.homeTeamId : game.awayTeamId;
+              const playerOptions = players.filter((player) => !sideTeamId || player.teamId === sideTeamId);
+              return (
               <div key={side}>
                 <h3 className="mb-2 text-sm font-black text-emerald-800">{side === "AWAY" ? "ビジター" : "ホーム"}</h3>
                 <div className="grid gap-2">
                   {game.players.filter((player) => player.teamSide === side).map((player) => (
-                    <div key={player.id} className="grid grid-cols-[64px_1fr_88px_72px_44px] gap-2">
+                    <div key={player.id} className="grid gap-2 sm:grid-cols-[64px_1fr_88px_72px_44px]">
                       <input className={field} type="number" min={1} max={99} value={player.battingOrder ?? ""} onChange={(e) => patch({ players: updateById(game.players, player.id, { battingOrder: Number(e.target.value) }) })} placeholder="打順" />
-                      <input className={field} value={player.name} onChange={(e) => patch({ players: updateById(game.players, player.id, { name: e.target.value }) })} placeholder="選手名" />
+                      <select className={field} value={player.name ? `name:${player.name}` : ""} onChange={(e) => {
+                        const option = playerOptions.find((item) => item.label === e.target.value.replace("name:", ""));
+                        patch({ players: updateById(game.players, player.id, { name: option?.label ?? "", number: option?.number ?? player.number, position: option?.position ?? player.position }) });
+                      }}><option value="">登録済み選手から選択</option>{playerOptions.map((option) => <option key={option.id} value={`name:${option.label}`}>{option.label}{option.helper ? ` / ${option.helper}` : ""}</option>)}</select>
+                      <input className={field} value={player.name} onChange={(e) => patch({ players: updateById(game.players, player.id, { name: e.target.value }) })} placeholder="新規/選手名" />
                       <select className={field} value={player.position} onChange={(e) => patch({ players: updateById(game.players, player.id, { position: e.target.value }) })}><option value="">守備</option>{positions.map((pos) => <option key={pos}>{pos}</option>)}</select>
                       <input className={field} value={player.number} onChange={(e) => patch({ players: updateById(game.players, player.id, { number: e.target.value }) })} placeholder="背番" />
                       <button type="button" className="rounded-md bg-stone-100 text-stone-500" onClick={() => patch({ players: game.players.filter((item) => item.id !== player.id) })} title="削除"><Trash2 className="mx-auto h-4 w-4" /></button>
@@ -390,7 +522,11 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false }: { mod
                   ))}
                 </div>
               </div>
-            ))}
+            );})}
+            <div className="flex flex-wrap justify-between gap-2">
+              <button type="button" className={`${btn} bg-stone-100 text-stone-800`} onClick={() => setFormStep("details")}>戻る</button>
+              <button type="button" className={`${btn} bg-emerald-700 text-white`} onClick={() => setFormStep("record")}>試合記録へ</button>
+            </div>
           </section>
 
           <section className="space-y-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm">
@@ -429,8 +565,20 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false }: { mod
         </>
       ) : null}
 
-      {game.mode === "SCOREBOOK" ? (
+      {game.mode === "SCOREBOOK" && formStep === "record" ? (
         <section className="space-y-4 rounded-md border border-stone-200 bg-white p-4 shadow-sm">
+          <div className="grid grid-cols-2 gap-2 text-xs font-black sm:grid-cols-6">
+            {([
+              ["pitch", "1 投球記録"],
+              ["pitchDetail", "2 投球詳細"],
+              ["batting", "3 打撃記録"],
+              ["battingDetail", "4 打撃詳細"],
+              ["runner", "5 走者記録"],
+              ["confirm", "6 確認"],
+            ] as Array<[PlateStep, string]>).map(([step, text]) => (
+              <button key={step} type="button" className={`min-h-10 rounded-md px-2 ${plateStep === step ? "bg-amber-600 text-white" : "bg-stone-100 text-stone-700"}`} onClick={() => setPlateStep(step)}>{text}</button>
+            ))}
+          </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <label className={label}>審判メモ<input className={field} value={game.umpireMemo} onChange={(e) => patch({ umpireMemo: e.target.value })} /></label>
             <label className={label}>コールド理由<input className={field} value={game.calledReason} onChange={(e) => patch({ calledReason: e.target.value })} /></label>
@@ -468,30 +616,49 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false }: { mod
               <label className={label}>アウト後<input className={field} type="number" min={0} max={3} value={paDraft.outsAfter} onChange={(e) => setPaDraft({ ...paDraft, outsAfter: Number(e.target.value) })} /></label>
             </div>
           </div>
-          <div>
+          {plateStep === "pitch" ? <div>
             <h2 className="mb-2 text-lg font-black text-stone-950">カウント入力</h2>
+            <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-6">
+              {[
+                ["BALL", "B"],
+                ["CALLED_STRIKE", "S"],
+                ["FOUL", "ファウル"],
+                ["BATTER_ACTION", "打撃"],
+                ["HIT_BY_PITCH", "死球"],
+                ["INTENTIONAL_WALK", "敬遠"],
+                ["WILD_PITCH", "暴投"],
+                ["PASSED_BALL", "捕逸"],
+                ["BALK", "ボーク"],
+                ["OTHER", "その他"],
+              ].map(([value, text]) => (
+                <button key={value} type="button" onClick={() => {
+                  setPitchCategory(value as PitchCall | "BATTER_ACTION" | "OTHER");
+                  if (value !== "BATTER_ACTION" && value !== "OTHER") addPitch(value as PitchCall);
+                  setPlateStep("pitchDetail");
+                }} className={`${btn} ${pitchCategory === value ? "bg-amber-600 text-white" : "bg-stone-100 text-stone-800"}`}>{text}</button>
+              ))}
+            </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
               {pitchCalls.map((call) => <button type="button" key={call.value} onClick={() => addPitch(call.value)} className={`${btn} bg-stone-100 text-stone-800 hover:bg-stone-200`}>{call.label}</button>)}
             </div>
             <div className="mt-2 rounded-md bg-stone-50 p-3 text-xs font-bold text-stone-600">
               {paDraft.balls >= 4 ? "4ボールです。四球または敬遠を候補にできます。" : paDraft.strikes >= 3 ? "3ストライクです。三振系の結果を候補にできます。" : `投球数 ${draftPitches.length}: ${draftPitches.map((pitch) => pitchCallLabels[pitch.pitchCall as PitchCall] ?? pitch.pitchCall).join(" / ") || "未入力"}`}
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          </div> : null}
+          {plateStep === "pitchDetail" ? <div className="rounded-md border border-stone-200 p-3">
+            <h2 className="mb-2 text-lg font-black text-stone-950">投球詳細</h2>
+            <div className="grid gap-2 sm:grid-cols-3">
               {settings.useSpeed ? <label className={label}>球速 km/h<input className={field} type="number" min={80} max={180} value={pitchDraft.speedKmh} onChange={(e) => setPitchDraft({ ...pitchDraft, speedKmh: e.target.value })} /></label> : null}
               {settings.usePitchType ? <label className={label}>球種<select className={field} value={pitchDraft.pitchType} onChange={(e) => setPitchDraft({ ...pitchDraft, pitchType: e.target.value })}><option value="">選択</option>{pitchTypes.map((value) => <option key={value}>{value}</option>)}</select></label> : null}
               {settings.useCourse ? <label className={label}>コース<select className={field} value={pitchDraft.course} onChange={(e) => setPitchDraft({ ...pitchDraft, course: e.target.value })}><option value="">選択</option>{courses.map((value) => <option key={value}>{value}</option>)}</select></label> : null}
             </div>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {settings.useBattedBallType ? <label className={label}>打球形式<select className={field} value={paDraft.battedBallType} onChange={(e) => setPaDraft({ ...paDraft, battedBallType: e.target.value })}><option value="">選択</option>{battedBallTypes.map((value) => <option key={value.value} value={value.value}>{value.label}</option>)}</select></label> : null}
-            {settings.useHitDirection ? <label className={label}>打球方向<select className={field} value={paDraft.hitDirection} onChange={(e) => setPaDraft({ ...paDraft, hitDirection: e.target.value })}><option value="">選択</option>{hitDirections.map((value) => <option key={value.value} value={value.value}>{value.label}</option>)}</select></label> : null}
-            <label className={label}>打点<input className={field} type="number" min={0} value={paDraft.rbi} onChange={(e) => setPaDraft({ ...paDraft, rbi: Number(e.target.value) })} /></label>
-            <label className="flex items-center gap-3 text-sm font-bold text-stone-700"><input type="checkbox" checked={paDraft.runScored} onChange={(e) => setPaDraft({ ...paDraft, runScored: e.target.checked })} /> 得点</label>
-            <label className={`${label} sm:col-span-3`}>打席メモ<textarea className={`${field} min-h-20`} value={paDraft.memo ?? ""} onChange={(e) => setPaDraft({ ...paDraft, memo: e.target.value })} /></label>
-          </div>
-          <div>
+            <div className="mt-3 flex justify-end">
+              <button type="button" className={`${btn} bg-emerald-700 text-white`} onClick={() => setPlateStep(pitchCategory === "BATTER_ACTION" ? "batting" : "runner")}>次へ</button>
+            </div>
+          </div> : null}
+          {plateStep === "batting" ? <div>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-black text-stone-950">打席結果入力</h2>
+              <h2 className="text-lg font-black text-stone-950">打撃記録</h2>
               <p className="rounded-md bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">選択中: {paDraft.result ? plateResultLabels[paDraft.result] : "未選択"}</p>
             </div>
             <div className="space-y-3">
@@ -513,8 +680,17 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false }: { mod
                 </div>
               ))}
             </div>
-          </div>
-          <div className="space-y-3">
+            <div className="mt-3 flex justify-end"><button type="button" className={`${btn} bg-emerald-700 text-white`} onClick={() => setPlateStep("battingDetail")}>打撃詳細へ</button></div>
+          </div> : null}
+          {plateStep === "battingDetail" ? <div className="grid gap-3 sm:grid-cols-3">
+            {settings.useBattedBallType ? <label className={label}>打球形式<select className={field} value={paDraft.battedBallType} onChange={(e) => setPaDraft({ ...paDraft, battedBallType: e.target.value })}><option value="">選択</option>{battedBallTypes.map((value) => <option key={value.value} value={value.value}>{value.label}</option>)}</select></label> : null}
+            {settings.useHitDirection ? <label className={label}>打球方向<select className={field} value={paDraft.hitDirection} onChange={(e) => setPaDraft({ ...paDraft, hitDirection: e.target.value })}><option value="">選択</option>{hitDirections.map((value) => <option key={value.value} value={value.value}>{value.label}</option>)}</select></label> : null}
+            <label className={label}>打点<input className={field} type="number" min={0} value={paDraft.rbi} onChange={(e) => setPaDraft({ ...paDraft, rbi: Number(e.target.value) })} /></label>
+            <label className="flex items-center gap-3 text-sm font-bold text-stone-700"><input type="checkbox" checked={paDraft.runScored} onChange={(e) => setPaDraft({ ...paDraft, runScored: e.target.checked })} /> 得点</label>
+            <label className={`${label} sm:col-span-3`}>打席メモ<textarea className={`${field} min-h-20`} value={paDraft.memo ?? ""} onChange={(e) => setPaDraft({ ...paDraft, memo: e.target.value })} /></label>
+            <div className="sm:col-span-3 flex justify-end"><button type="button" className={`${btn} bg-emerald-700 text-white`} onClick={() => setPlateStep("runner")}>走者記録へ</button></div>
+          </div> : null}
+          {plateStep === "runner" ? <div className="space-y-3">
             <RunnerDiamond
               runnerState={game.runnerState}
               onChange={(runnerState) => patch({ runnerState })}
@@ -524,13 +700,33 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false }: { mod
               onClear={() => patch({ runnerState: { first: "", second: "", third: "" } })}
             />
             <p className="rounded-md bg-emerald-50 p-3 text-sm font-bold text-emerald-900">{lastRunnerMessage}</p>
-          </div>
+            <div className="flex justify-end"><button type="button" className={`${btn} bg-amber-600 text-white`} onClick={() => setPlateStep("confirm")}>確認画面へ</button></div>
+          </div> : null}
+          {plateStep === "confirm" ? <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
+            <h2 className="text-lg font-black text-stone-950">打席確定前の確認</h2>
+            <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+              <div><dt className="font-bold text-stone-500">イニング</dt><dd>{paDraft.inning}回{paDraft.topBottom === "TOP" ? "表" : "裏"}</dd></div>
+              <div><dt className="font-bold text-stone-500">打順 / 打者 / 投手</dt><dd>{paDraft.battingOrder}番 {paDraft.batterName || "未入力"} / {paDraft.pitcherName || "未入力"}</dd></div>
+              <div><dt className="font-bold text-stone-500">投球記録</dt><dd>{draftPitches.map((pitch) => pitchCallLabels[pitch.pitchCall as PitchCall] ?? pitch.pitchCall).join(" / ") || pitchCategory}</dd></div>
+              <div><dt className="font-bold text-stone-500">球速 / 球種 / コース</dt><dd>{pitchDraft.speedKmh || "-"} / {pitchDraft.pitchType || "-"} / {pitchDraft.course || "-"}</dd></div>
+              <div><dt className="font-bold text-stone-500">打撃結果</dt><dd>{paDraft.result ? plateResultLabels[paDraft.result] : "-"}</dd></div>
+              <div><dt className="font-bold text-stone-500">打球方向 / 形式</dt><dd>{paDraft.hitDirection || "-"} / {paDraft.battedBallType || "-"}</dd></div>
+              <div><dt className="font-bold text-stone-500">走者 before / after</dt><dd>{baseStateBeforeDraft} → {runnerText(game.runnerState)}</dd></div>
+              <div><dt className="font-bold text-stone-500">RBI / 得点</dt><dd>{paDraft.rbi} / {paDraft.runScored ? "あり" : "なし"}</dd></div>
+              <div><dt className="font-bold text-stone-500">アウト before / after</dt><dd>{paDraft.outsBefore} → {paDraft.outsAfter}</dd></div>
+              <div><dt className="font-bold text-stone-500">保存先 / 権限</dt><dd>{dbEnabled ? "DB保存" : "ローカル保存"} / {dbEnabled ? "ログイン済み" : "ゲスト"}</dd></div>
+              <div className="sm:col-span-2"><dt className="font-bold text-stone-500">メモ</dt><dd>{paDraft.memo || "-"}</dd></div>
+            </dl>
+          </div> : null}
           <div className="grid gap-2 sm:grid-cols-3">
             <button type="button" onClick={undo} className={`${btn} bg-white text-stone-700 ring-1 ring-stone-300`}>
               <ArrowLeft className="h-4 w-4" />
               1つ戻す: {nextUndoAction}
             </button>
-            <button type="button" onClick={confirmPlateAppearance} className={`${btn} bg-emerald-700 text-white sm:col-span-2`}>
+            <button type="button" onClick={() => setPlateStep(plateStep === "confirm" ? "runner" : "confirm")} className={`${btn} bg-stone-100 text-stone-800`}>
+              {plateStep === "confirm" ? "戻って修正" : "確認画面へ"}
+            </button>
+            <button type="button" disabled={plateStep !== "confirm"} onClick={confirmPlateAppearance} className={`${btn} bg-emerald-700 text-white disabled:opacity-50`}>
               打席を確定
             </button>
           </div>

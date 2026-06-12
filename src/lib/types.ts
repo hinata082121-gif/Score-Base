@@ -124,6 +124,8 @@ export type RunnerState = {
 export type ScoreBaseGame = {
   id: string;
   teamId?: string;
+  homeTeamId?: string;
+  awayTeamId?: string;
   sourceLocalId?: string;
   mode: GameMode;
   gameDate: string;
@@ -138,6 +140,7 @@ export type ScoreBaseGame = {
   impressivePlayer: string;
   mvp: string;
   result: string;
+  outcome?: string;
   photoMemo: string;
   isPublic: boolean;
   status: GameStatus;

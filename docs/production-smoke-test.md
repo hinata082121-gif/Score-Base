@@ -458,3 +458,46 @@ Production checks still requiring manual access:
 
 - Supabase Table Editor row counts and column existence, because this workspace does not have authenticated Supabase console access.
 - Full User A / User B real-data role test, because it creates real Production data and requires test credentials that must not be exposed in logs.
+
+## v0.7.4 Input UX Priority
+
+Date: 2026-06-12
+
+Reason:
+
+- During Production smoke testing, the remaining User B / CSV / share checks were paused because the core game-entry UX had too much friction.
+- v0.7.4 prioritizes fixing the game and scorebook input flow before resuming the remaining smoke test.
+
+Implemented input UX changes:
+
+- Game entry now uses candidate selection plus new input for home team, away team, venue, competition, weather, and favorite team.
+- Favorite team supports no favorite, registered team selection, home/away selection, and new input.
+- Registered DB teams and players are passed into the game form for logged-in users.
+- Guest/local data still loads localStorage teams, players, and previous games after hydration.
+- Score input and outcome input are separated in the UI.
+- Scorebook mode is split into in-page steps: game details, lineup, and game record.
+- Lineup entry can select registered players for the selected registered team, or use new player names.
+- Optional checkboxes can add new team names or new lineup players to the master data during save.
+- Plate appearance entry is now step-based: pitch record, pitch detail, batting record, batting detail, runner record, and confirmation.
+- Plate appearance confirmation is required before finalizing.
+
+Verification after v0.7.4:
+
+- Team selector shows registered teams plus new input.
+- Competition selector shows previous game competitions plus new input.
+- Weather selector shows fixed weather options plus new input.
+- Venue selector shows previous venues and team home grounds plus new input.
+- Score and outcome are separate controls.
+- Scorebook form shows the three main steps.
+- Lineup step shows registered players when a registered team is selected.
+- Step-based plate appearance flow shows a confirmation card before save.
+- DB-backed save path still uses Server Actions and repository authorization.
+- localStorage guest save path still uses the existing local storage flow.
+- ExportSnapshot and AuditLog were not changed by v0.7.4 and should remain compatible.
+
+Smoke test still pending:
+
+- User B invitation and role flow.
+- CSV output check.
+- share/copy output check.
+- Re-run DB persistence checks after the v0.7.4 input UX deploy.
