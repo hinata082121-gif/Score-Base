@@ -44,6 +44,24 @@ type PlayerOption = SelectOrCreateOption & { teamId?: string; number?: string; p
 
 const weatherOptions: SelectOrCreateOption[] = ["晴れ", "曇り", "雨", "小雨", "雪", "屋内", "その他"].map((label) => ({ id: label, label }));
 const outcomeOptions = ["未定", "勝ち", "負け", "引き分け", "ノーゲーム", "中止", "延期", "その他"];
+const pitchActionButtons: Array<{ value: PitchCall | "BATTER_ACTION" | "OTHER"; label: string; short: string; tone: string }> = [
+  { value: "BALL", label: "ボール", short: "B", tone: "bg-emerald-500 text-white" },
+  { value: "CALLED_STRIKE", label: "見逃し", short: "S", tone: "bg-amber-400 text-stone-950" },
+  { value: "SWINGING_STRIKE", label: "空振り", short: "S", tone: "bg-amber-500 text-stone-950" },
+  { value: "FOUL", label: "ファウル", short: "F", tone: "bg-yellow-300 text-stone-950" },
+  { value: "BATTER_ACTION", label: "打撃", short: "打", tone: "bg-sky-500 text-white" },
+  { value: "HIT_BY_PITCH", label: "死球", short: "死", tone: "bg-rose-500 text-white" },
+  { value: "INTENTIONAL_WALK", label: "敬遠", short: "敬", tone: "bg-teal-600 text-white" },
+  { value: "WILD_PITCH", label: "暴投", short: "暴", tone: "bg-orange-500 text-white" },
+  { value: "PASSED_BALL", label: "捕逸", short: "捕", tone: "bg-orange-400 text-stone-950" },
+  { value: "BALK", label: "ボーク", short: "反", tone: "bg-red-600 text-white" },
+  { value: "OTHER", label: "その他", short: "他", tone: "bg-stone-600 text-white" },
+];
+const courseGrid = [
+  "内角高め", "真ん中高め", "外角高め",
+  "内角真ん中", "真ん中", "外角真ん中",
+  "内角低め", "真ん中低め", "外角低め",
+];
 
 function emptyGame(mode: GameMode): ScoreBaseGame {
   const now = new Date().toISOString();
@@ -162,6 +180,21 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
   const settings = useMemo(() => loadSettings(), []);
   const attackingTeam = paDraft.topBottom === "TOP" ? game.awayTeamName || "ビジター" : game.homeTeamName || "ホーム";
   const fieldingTeam = paDraft.topBottom === "TOP" ? game.homeTeamName || "ホーム" : game.awayTeamName || "ビジター";
+  const attackingSide = paDraft.topBottom === "TOP" ? "AWAY" : "HOME";
+  const fieldingSide = paDraft.topBottom === "TOP" ? "HOME" : "AWAY";
+  const currentBatter = game.players.find((player) => player.teamSide === attackingSide && player.battingOrder === paDraft.battingOrder);
+  const currentPitcher = game.players.find((player) => player.teamSide === fieldingSide && player.position === "P");
+  const batterOptions = game.players.filter((player) => player.teamSide === attackingSide && player.name);
+  const pitcherOptions = game.players.filter((player) => player.teamSide === fieldingSide && (player.position === "P" || player.name));
+  const awayRuns = game.inningScores.reduce((sum, inning) => sum + (Number(inning.top) || 0), 0);
+  const homeRuns = game.inningScores.reduce((sum, inning) => sum + (Number(inning.bottom) || 0), 0);
+  const awayHits = game.plateAppearances.filter((pa) => pa.topBottom === "TOP" && ["SINGLE", "DOUBLE", "TRIPLE", "HOME_RUN"].includes(pa.result)).length;
+  const homeHits = game.plateAppearances.filter((pa) => pa.topBottom === "BOTTOM" && ["SINGLE", "DOUBLE", "TRIPLE", "HOME_RUN"].includes(pa.result)).length;
+  const awayErrors = game.plateAppearances.filter((pa) => pa.topBottom === "BOTTOM" && pa.result === "ERROR").length;
+  const homeErrors = game.plateAppearances.filter((pa) => pa.topBottom === "TOP" && pa.result === "ERROR").length;
+  const pitcherPitchCount = game.plateAppearances
+    .filter((pa) => pa.pitcherName === (paDraft.pitcherName || currentPitcher?.name))
+    .reduce((sum, pa) => sum + pa.pitches.length, 0) + draftPitches.length;
   const nextUndoAction: UndoAction = draftPitches.length > 0 ? "投球を取り消し" : "打席確定を取り消し";
   const teamOptions = teams;
   const venueOptions = useMemo(() => uniqueOptions([...gamesForCandidates.map((item) => item.venue), ...teams.map((team) => team.homeGround ?? "")]), [gamesForCandidates, teams]);
@@ -287,6 +320,29 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
     patch({
       inningScores: game.inningScores.map((inning, index) => index === 0 ? { ...inning, [side === "HOME" ? "bottom" : "top"]: score } : { ...inning, [side === "HOME" ? "bottom" : "top"]: index === 0 ? score : 0 }),
     });
+  }
+
+  function setCount(type: "balls" | "strikes" | "outsBefore", value: number) {
+    const max = type === "balls" ? 3 : 2;
+    setPaDraft((current) => {
+      const next = Math.max(0, Math.min(max, value));
+      return {
+        ...current,
+        [type]: next,
+        ...(type === "outsBefore" ? { outsAfter: Math.max(current.outsAfter, next) } : {}),
+      };
+    });
+  }
+
+  function selectLineupPlayer(role: "batter" | "pitcher", playerId: string) {
+    const player = game.players.find((item) => item.id === playerId);
+    if (!player) return;
+    setPaDraft((current) => ({
+      ...current,
+      batterName: role === "batter" ? player.name : current.batterName,
+      battingOrder: role === "batter" ? player.battingOrder ?? current.battingOrder : current.battingOrder,
+      pitcherName: role === "pitcher" ? player.name : current.pitcherName,
+    }));
   }
 
   function addBench(side: "HOME" | "AWAY") {
@@ -579,63 +635,147 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
               <button key={step} type="button" className={`min-h-10 rounded-md px-2 ${plateStep === step ? "bg-amber-600 text-white" : "bg-stone-100 text-stone-700"}`} onClick={() => setPlateStep(step)}>{text}</button>
             ))}
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <label className={label}>審判メモ<input className={field} value={game.umpireMemo} onChange={(e) => patch({ umpireMemo: e.target.value })} /></label>
             <label className={label}>コールド理由<input className={field} value={game.calledReason} onChange={(e) => patch({ calledReason: e.target.value })} /></label>
-            <label className={label}>打者<input className={field} value={paDraft.batterName} onChange={(e) => setPaDraft({ ...paDraft, batterName: e.target.value })} /></label>
           </div>
-          <div className="sticky top-32 z-10 rounded-md border border-emerald-200 bg-emerald-50 p-3 shadow-sm">
-            <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-md bg-white p-2 ring-1 ring-emerald-100">
-                <p className="text-[11px] font-bold text-stone-500">試合</p>
-                <p className="truncate text-sm font-black text-stone-950">{game.awayTeamName || "ビジター"} vs {game.homeTeamName || "ホーム"}</p>
+          <div className="sticky top-32 z-10 space-y-3 rounded-md border border-stone-700 bg-stone-950 p-3 text-white shadow-xl">
+            <div className="overflow-x-auto rounded-md border border-lime-300/30 bg-black">
+              <table className="w-max min-w-full border-separate border-spacing-0 text-center font-mono text-sm">
+                <thead>
+                  <tr className="text-lime-200">
+                    <th className="sticky left-0 z-10 min-w-32 bg-black p-2 text-left">TEAM</th>
+                    {Array.from({ length: 9 }, (_, index) => index + 1).map((inning) => (
+                      <th key={inning} className={`min-w-10 p-2 ${paDraft.inning === inning ? "bg-lime-300 text-stone-950" : ""}`}>{inning}</th>
+                    ))}
+                    {["R", "H", "E"].map((labelText) => <th key={labelText} className="min-w-10 bg-stone-900 p-2 text-lime-200">{labelText}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {([
+                    { side: "AWAY", name: game.awayTeamName || "ビジター", scores: game.inningScores.map((inning) => inning.top), runs: awayRuns, hits: awayHits, errors: awayErrors },
+                    { side: "HOME", name: game.homeTeamName || "ホーム", scores: game.inningScores.map((inning) => inning.bottom), runs: homeRuns, hits: homeHits, errors: homeErrors },
+                  ] as const).map((team) => (
+                    <tr key={team.side} className={attackingSide === team.side ? "text-lime-100" : "text-stone-300"}>
+                      <th className={`sticky left-0 z-10 min-w-32 border-t border-stone-800 p-2 text-left ${attackingSide === team.side ? "bg-emerald-800" : "bg-black"}`}>{attackingSide === team.side ? "▶ " : ""}{team.name}</th>
+                      {Array.from({ length: 9 }, (_, index) => (
+                        <td key={index} className={`border-t border-stone-800 p-2 ${paDraft.inning === index + 1 ? "bg-lime-300/20 text-lime-100" : ""}`}>{team.scores[index] ?? ""}</td>
+                      ))}
+                      <td className="border-t border-stone-800 bg-stone-900 p-2 font-black text-white">{team.runs}</td>
+                      <td className="border-t border-stone-800 bg-stone-900 p-2">{team.hits}</td>
+                      <td className="border-t border-stone-800 bg-stone-900 p-2">{team.errors}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-[1fr_auto_1fr] lg:items-stretch">
+              <div className="rounded-md border border-sky-400/30 bg-slate-900 p-3">
+                <p className="text-xs font-black text-sky-200">PITCHER / {fieldingTeam}</p>
+                <div className="mt-2 flex items-center gap-3">
+                  <div className="grid h-14 w-14 place-items-center rounded-full bg-sky-500/20 text-xl font-black text-sky-100">P</div>
+                  <div className="min-w-0">
+                    <p className="truncate text-lg font-black">{paDraft.pitcherName || currentPitcher?.name || "投手未入力"}</p>
+                    <p className="text-xs font-bold text-stone-300">#{currentPitcher?.number || "-"} / 投球数 {pitcherPitchCount} / 利き腕 -</p>
+                  </div>
+                </div>
+                {pitcherOptions.length ? <select className="mt-3 min-h-10 w-full rounded-md border border-sky-400/30 bg-stone-950 px-3 text-sm text-white" value={currentPitcher?.id ?? ""} onChange={(e) => selectLineupPlayer("pitcher", e.target.value)}><option value="">登録済み投手から選択</option>{pitcherOptions.map((player) => <option key={player.id} value={player.id}>{player.number ? `#${player.number} ` : ""}{player.name} {player.position}</option>)}</select> : null}
+                <input className="mt-2 min-h-10 w-full rounded-md border border-sky-400/30 bg-stone-950 px-3 text-sm text-white" value={paDraft.pitcherName} onChange={(e) => setPaDraft({ ...paDraft, pitcherName: e.target.value })} placeholder="投手名を自由入力" />
               </div>
-              <div className="rounded-md bg-white p-2 ring-1 ring-emerald-100">
-                <p className="text-[11px] font-bold text-stone-500">現在</p>
-                <p className="text-sm font-black text-stone-950">{paDraft.inning}回{scorebookSideLabel(paDraft.topBottom)} / 攻撃 {attackingTeam}</p>
+
+              <div className="grid place-items-center rounded-md border border-amber-300/40 bg-stone-900 px-4 py-3 text-center">
+                <p className="text-2xl font-black text-amber-200">VS</p>
+                <p className="mt-1 text-xs font-bold text-stone-300">{paDraft.inning}回{scorebookSideLabel(paDraft.topBottom)} / {attackingTeam} 攻撃</p>
+                <p className="mt-1 rounded-full bg-stone-800 px-3 py-1 text-[11px] font-black text-lime-200">{dbEnabled ? "DB保存" : "ローカル保存"} / {dbEnabled ? "ログイン済み" : "ゲスト"}</p>
               </div>
-              <div className="rounded-md bg-white p-2 ring-1 ring-emerald-100">
-                <p className="text-[11px] font-bold text-stone-500">打者 / 投手</p>
-                <p className="truncate text-sm font-black text-stone-950">{paDraft.batterName || `${paDraft.battingOrder}番打者`} / {paDraft.pitcherName || "投手未入力"}</p>
-              </div>
-              <div className="rounded-md bg-stone-950 p-2 text-white">
-                <p className="text-[11px] font-bold text-lime-200">B / S / O</p>
-                <p className="text-lg font-black">B{paDraft.balls} S{paDraft.strikes} O{paDraft.outsBefore}</p>
+
+              <div className="rounded-md border border-amber-400/30 bg-zinc-900 p-3">
+                <p className="text-xs font-black text-amber-200">BATTER / {attackingTeam}</p>
+                <div className="mt-2 flex items-center gap-3">
+                  <div className="grid h-14 w-14 place-items-center rounded-full bg-amber-500/20 text-xl font-black text-amber-100">B</div>
+                  <div className="min-w-0">
+                    <p className="truncate text-lg font-black">{paDraft.batterName || currentBatter?.name || `${paDraft.battingOrder}番打者`}</p>
+                    <p className="text-xs font-bold text-stone-300">#{currentBatter?.number || "-"} / {paDraft.battingOrder}番 / {currentBatter?.position || "-"}</p>
+                  </div>
+                </div>
+                {batterOptions.length ? <select className="mt-3 min-h-10 w-full rounded-md border border-amber-400/30 bg-stone-950 px-3 text-sm text-white" value={currentBatter?.id ?? ""} onChange={(e) => selectLineupPlayer("batter", e.target.value)}><option value="">登録済み打者から選択</option>{batterOptions.map((player) => <option key={player.id} value={player.id}>{player.battingOrder ? `${player.battingOrder}番 ` : ""}{player.number ? `#${player.number} ` : ""}{player.name} {player.position}</option>)}</select> : null}
+                <input className="mt-2 min-h-10 w-full rounded-md border border-amber-400/30 bg-stone-950 px-3 text-sm text-white" value={paDraft.batterName} onChange={(e) => setPaDraft({ ...paDraft, batterName: e.target.value })} placeholder="打者名を自由入力" />
               </div>
             </div>
-            <div className="grid gap-2 text-xs font-bold text-stone-700 sm:grid-cols-3">
-              <p>守備: {fieldingTeam}</p>
-              <p>走者: {runnerText(game.runnerState)}</p>
-              <p>次の戻す操作: {nextUndoAction}</p>
+
+            <div className="grid gap-3 lg:grid-cols-[1fr_220px]">
+              <div className="rounded-md border border-stone-700 bg-stone-900 p-3">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {([
+                    ["balls", "B", 3, "bg-emerald-400"],
+                    ["strikes", "S", 2, "bg-amber-300"],
+                    ["outsBefore", "O", 2, "bg-red-500"],
+                  ] as const).map(([key, text, max, color]) => (
+                    <div key={key} className="rounded-md bg-black/40 p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-sm font-black">{text}</span>
+                        <span className="text-xs font-bold text-stone-300">タップで修正</span>
+                      </div>
+                      <div className="flex gap-2">
+                        {Array.from({ length: max }, (_, index) => (
+                          <button key={index} type="button" aria-label={`${text}${index + 1}`} onClick={() => setCount(key, index + 1)} className={`h-9 w-9 rounded-full border-2 ${paDraft[key] > index ? `${color} border-white` : "border-stone-500 bg-stone-800"}`} />
+                        ))}
+                        <button type="button" onClick={() => setCount(key, 0)} className="min-h-9 rounded-md bg-stone-800 px-2 text-xs font-bold">0</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 overflow-x-auto">
+                  <div className="flex min-h-14 gap-2">
+                    {draftPitches.length ? draftPitches.map((pitch) => (
+                      <button key={pitch.id} type="button" className="min-w-24 rounded-md border border-lime-300/30 bg-black px-3 py-2 text-left text-xs font-bold text-lime-100">
+                        <span className="block text-sm font-black">#{pitch.pitchNumber} {pitchCallLabels[pitch.pitchCall as PitchCall] ?? pitch.pitchCall}</span>
+                        <span className="block text-stone-300">{pitch.speedKmh ? `${pitch.speedKmh}km/h` : "-"} / {pitch.pitchType || "-"} / {pitch.course || "-"}</span>
+                      </button>
+                    )) : <p className="rounded-md border border-dashed border-stone-600 px-3 py-3 text-sm font-bold text-stone-300">投球履歴はまだありません</p>}
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-md border border-stone-700 bg-stone-900 p-3">
+                <p className="mb-2 text-xs font-black text-stone-300">走者</p>
+                <div className="mx-auto grid h-40 w-40 grid-cols-3 grid-rows-3 place-items-center">
+                  <div className="col-start-2 row-start-2 h-16 w-16 rotate-45 border-2 border-stone-400 bg-stone-800" />
+                  <div className="col-start-2 row-start-3 rounded bg-white px-2 py-1 text-[11px] font-black text-stone-950">本塁</div>
+                  {[
+                    { key: "second", label: "二", grid: "col-start-2 row-start-1" },
+                    { key: "third", label: "三", grid: "col-start-1 row-start-2" },
+                    { key: "first", label: "一", grid: "col-start-3 row-start-2" },
+                  ].map((base) => (
+                    <button key={base.key} type="button" onClick={() => patch({ runnerState: { ...game.runnerState, [base.key]: game.runnerState[base.key as keyof RunnerState] ? "" : base.label } })} className={`${base.grid} z-10 h-14 w-14 rotate-45 rounded-sm border-2 ${game.runnerState[base.key as keyof RunnerState] ? "border-lime-200 bg-lime-300 text-stone-950" : "border-stone-500 bg-stone-800 text-stone-300"}`}>
+                      <span className="-rotate-45 block text-xs font-black">{base.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-center text-xs font-bold text-stone-300">{runnerText(game.runnerState)}</p>
+              </div>
             </div>
-            <div className="mt-3 grid gap-3 sm:grid-cols-5">
-              <label className={label}>回<input className={field} type="number" min={1} value={paDraft.inning} onChange={(e) => setPaDraft({ ...paDraft, inning: Number(e.target.value) })} /></label>
-              <label className={label}>表/裏<select className={field} value={paDraft.topBottom} onChange={(e) => setPaDraft({ ...paDraft, topBottom: e.target.value as "TOP" | "BOTTOM" })}><option value="TOP">表</option><option value="BOTTOM">裏</option></select></label>
-              <label className={label}>打順<input className={field} type="number" min={1} max={99} value={paDraft.battingOrder} onChange={(e) => setPaDraft({ ...paDraft, battingOrder: Number(e.target.value) })} /></label>
-              <label className={label}>投手<input className={field} value={paDraft.pitcherName} onChange={(e) => setPaDraft({ ...paDraft, pitcherName: e.target.value })} /></label>
-              <label className={label}>アウト後<input className={field} type="number" min={0} max={3} value={paDraft.outsAfter} onChange={(e) => setPaDraft({ ...paDraft, outsAfter: Number(e.target.value) })} /></label>
+
+            <div className="grid gap-3 sm:grid-cols-5">
+              <label className="space-y-1 text-sm font-bold text-stone-100">回<input className="min-h-11 w-full rounded-md border border-stone-600 bg-stone-900 px-3 py-2 text-sm text-white" type="number" min={1} value={paDraft.inning} onChange={(e) => setPaDraft({ ...paDraft, inning: Number(e.target.value) })} /></label>
+              <label className="space-y-1 text-sm font-bold text-stone-100">表/裏<select className="min-h-11 w-full rounded-md border border-stone-600 bg-stone-900 px-3 py-2 text-sm text-white" value={paDraft.topBottom} onChange={(e) => setPaDraft({ ...paDraft, topBottom: e.target.value as "TOP" | "BOTTOM" })}><option value="TOP">表</option><option value="BOTTOM">裏</option></select></label>
+              <label className="space-y-1 text-sm font-bold text-stone-100">打順<input className="min-h-11 w-full rounded-md border border-stone-600 bg-stone-900 px-3 py-2 text-sm text-white" type="number" min={1} max={99} value={paDraft.battingOrder} onChange={(e) => setPaDraft({ ...paDraft, battingOrder: Number(e.target.value) })} /></label>
+              <label className="space-y-1 text-sm font-bold text-stone-100">アウト後<input className="min-h-11 w-full rounded-md border border-stone-600 bg-stone-900 px-3 py-2 text-sm text-white" type="number" min={0} max={3} value={paDraft.outsAfter} onChange={(e) => setPaDraft({ ...paDraft, outsAfter: Number(e.target.value) })} /></label>
+              <p className="self-end rounded-md bg-stone-900 px-3 py-3 text-xs font-bold text-stone-300">次の戻す操作: {nextUndoAction}</p>
             </div>
           </div>
           {plateStep === "pitch" ? <div>
-            <h2 className="mb-2 text-lg font-black text-stone-950">カウント入力</h2>
-            <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-6">
-              {[
-                ["BALL", "B"],
-                ["CALLED_STRIKE", "S"],
-                ["FOUL", "ファウル"],
-                ["BATTER_ACTION", "打撃"],
-                ["HIT_BY_PITCH", "死球"],
-                ["INTENTIONAL_WALK", "敬遠"],
-                ["WILD_PITCH", "暴投"],
-                ["PASSED_BALL", "捕逸"],
-                ["BALK", "ボーク"],
-                ["OTHER", "その他"],
-              ].map(([value, text]) => (
-                <button key={value} type="button" onClick={() => {
-                  setPitchCategory(value as PitchCall | "BATTER_ACTION" | "OTHER");
-                  if (value !== "BATTER_ACTION" && value !== "OTHER") addPitch(value as PitchCall);
+            <h2 className="mb-2 text-lg font-black text-stone-950">投球記録</h2>
+            <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+              {pitchActionButtons.map((action) => (
+                <button key={action.value} type="button" onClick={() => {
+                  setPitchCategory(action.value);
+                  if (action.value !== "BATTER_ACTION" && action.value !== "OTHER") addPitch(action.value);
                   setPlateStep("pitchDetail");
-                }} className={`${btn} ${pitchCategory === value ? "bg-amber-600 text-white" : "bg-stone-100 text-stone-800"}`}>{text}</button>
+                }} className={`min-h-20 rounded-md px-3 py-3 text-left shadow-sm transition ${pitchCategory === action.value ? "ring-4 ring-stone-950" : ""} ${action.tone}`}>
+                  <span className="block text-2xl font-black">{action.short}</span>
+                  <span className="block text-sm font-black">{action.label}</span>
+                </button>
               ))}
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -645,15 +785,40 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
               {paDraft.balls >= 4 ? "4ボールです。四球または敬遠を候補にできます。" : paDraft.strikes >= 3 ? "3ストライクです。三振系の結果を候補にできます。" : `投球数 ${draftPitches.length}: ${draftPitches.map((pitch) => pitchCallLabels[pitch.pitchCall as PitchCall] ?? pitch.pitchCall).join(" / ") || "未入力"}`}
             </div>
           </div> : null}
-          {plateStep === "pitchDetail" ? <div className="rounded-md border border-stone-200 p-3">
-            <h2 className="mb-2 text-lg font-black text-stone-950">投球詳細</h2>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {settings.useSpeed ? <label className={label}>球速 km/h<input className={field} type="number" min={80} max={180} value={pitchDraft.speedKmh} onChange={(e) => setPitchDraft({ ...pitchDraft, speedKmh: e.target.value })} /></label> : null}
-              {settings.usePitchType ? <label className={label}>球種<select className={field} value={pitchDraft.pitchType} onChange={(e) => setPitchDraft({ ...pitchDraft, pitchType: e.target.value })}><option value="">選択</option>{pitchTypes.map((value) => <option key={value}>{value}</option>)}</select></label> : null}
-              {settings.useCourse ? <label className={label}>コース<select className={field} value={pitchDraft.course} onChange={(e) => setPitchDraft({ ...pitchDraft, course: e.target.value })}><option value="">選択</option>{courses.map((value) => <option key={value}>{value}</option>)}</select></label> : null}
+          {plateStep === "pitchDetail" ? <div className="rounded-md border border-stone-800 bg-stone-950 p-3 text-white shadow-lg">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg font-black">投球詳細</h2>
+              <p className="rounded-full bg-stone-800 px-3 py-1 text-xs font-bold text-stone-300">入力中: {pitchCategory === "BATTER_ACTION" ? "打撃" : pitchCategory === "OTHER" ? "その他" : pitchCallLabels[pitchCategory]}</p>
             </div>
-            <div className="mt-3 flex justify-end">
-              <button type="button" className={`${btn} bg-emerald-700 text-white`} onClick={() => setPlateStep(pitchCategory === "BATTER_ACTION" ? "batting" : "runner")}>次へ</button>
+            <div className="grid gap-3 lg:grid-cols-3">
+              {settings.useSpeed ? <div className="rounded-md bg-stone-900 p-3">
+                <p className="mb-2 text-sm font-black text-stone-200">球速 km/h</p>
+                <div className="grid grid-cols-[44px_1fr_44px] gap-2">
+                  <button type="button" className={`${btn} bg-stone-800 text-white`} onClick={() => setPitchDraft({ ...pitchDraft, speedKmh: String(Math.max(0, Number(pitchDraft.speedKmh || 140) - 1)) })}>-1</button>
+                  <input className="min-h-11 w-full rounded-md border border-stone-600 bg-black px-3 text-center text-lg font-black text-white" type="number" min={80} max={180} value={pitchDraft.speedKmh} onChange={(e) => setPitchDraft({ ...pitchDraft, speedKmh: e.target.value })} placeholder="140" />
+                  <button type="button" className={`${btn} bg-stone-800 text-white`} onClick={() => setPitchDraft({ ...pitchDraft, speedKmh: String(Number(pitchDraft.speedKmh || 140) + 1) })}>+1</button>
+                </div>
+                <div className="mt-2 grid grid-cols-4 gap-2">
+                  {[120, 130, 140, 150].map((speed) => <button key={speed} type="button" className="min-h-9 rounded-md bg-stone-800 text-xs font-bold text-stone-200" onClick={() => setPitchDraft({ ...pitchDraft, speedKmh: String(speed) })}>{speed}</button>)}
+                </div>
+              </div> : null}
+              {settings.usePitchType ? <div className="rounded-md bg-stone-900 p-3">
+                <p className="mb-2 text-sm font-black text-stone-200">球種</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {pitchTypes.map((value) => <button type="button" key={value} onClick={() => setPitchDraft({ ...pitchDraft, pitchType: value })} className={`min-h-10 rounded-md px-2 text-xs font-bold ${pitchDraft.pitchType === value ? "bg-lime-300 text-stone-950" : "bg-stone-800 text-stone-200"}`}>{value}</button>)}
+                </div>
+              </div> : null}
+              {settings.useCourse ? <div className="rounded-md bg-stone-900 p-3">
+                <p className="mb-2 text-sm font-black text-stone-200">コース</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {courseGrid.map((value) => <button type="button" key={value} onClick={() => setPitchDraft({ ...pitchDraft, course: value })} className={`min-h-12 rounded-md px-2 text-xs font-bold ${pitchDraft.course === value ? "bg-lime-300 text-stone-950" : "bg-stone-800 text-stone-200"}`}>{value}</button>)}
+                </div>
+                <select className="mt-2 min-h-10 w-full rounded-md border border-stone-600 bg-black px-3 text-sm text-white" value={pitchDraft.course} onChange={(e) => setPitchDraft({ ...pitchDraft, course: e.target.value })}><option value="">その他・未選択</option>{courses.map((value) => <option key={value}>{value}</option>)}</select>
+              </div> : null}
+            </div>
+            <div className="mt-3 flex flex-wrap justify-between gap-2">
+              <button type="button" className={`${btn} bg-stone-800 text-white`} onClick={() => setPlateStep("pitch")}>戻る</button>
+              <button type="button" className={`${btn} bg-emerald-600 text-white`} onClick={() => setPlateStep(pitchCategory === "BATTER_ACTION" ? "batting" : "runner")}>次へ</button>
             </div>
           </div> : null}
           {plateStep === "batting" ? <div>
@@ -706,8 +871,12 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
             <h2 className="text-lg font-black text-stone-950">打席確定前の確認</h2>
             <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
               <div><dt className="font-bold text-stone-500">イニング</dt><dd>{paDraft.inning}回{paDraft.topBottom === "TOP" ? "表" : "裏"}</dd></div>
+              <div><dt className="font-bold text-stone-500">攻撃 / 守備</dt><dd>{attackingTeam} / {fieldingTeam}</dd></div>
               <div><dt className="font-bold text-stone-500">打順 / 打者 / 投手</dt><dd>{paDraft.battingOrder}番 {paDraft.batterName || "未入力"} / {paDraft.pitcherName || "未入力"}</dd></div>
+              <div><dt className="font-bold text-stone-500">B/S/O before</dt><dd>B{paDraft.balls} / S{paDraft.strikes} / O{paDraft.outsBefore}</dd></div>
+              <div><dt className="font-bold text-stone-500">B/S/O after</dt><dd>B{paDraft.result ? 0 : paDraft.balls} / S{paDraft.result ? 0 : paDraft.strikes} / O{paDraft.outsAfter}</dd></div>
               <div><dt className="font-bold text-stone-500">投球記録</dt><dd>{draftPitches.map((pitch) => pitchCallLabels[pitch.pitchCall as PitchCall] ?? pitch.pitchCall).join(" / ") || pitchCategory}</dd></div>
+              <div><dt className="font-bold text-stone-500">投球数</dt><dd>この打席 {draftPitches.length} / 投手合計 {pitcherPitchCount}</dd></div>
               <div><dt className="font-bold text-stone-500">球速 / 球種 / コース</dt><dd>{pitchDraft.speedKmh || "-"} / {pitchDraft.pitchType || "-"} / {pitchDraft.course || "-"}</dd></div>
               <div><dt className="font-bold text-stone-500">打撃結果</dt><dd>{paDraft.result ? plateResultLabels[paDraft.result] : "-"}</dd></div>
               <div><dt className="font-bold text-stone-500">打球方向 / 形式</dt><dd>{paDraft.hitDirection || "-"} / {paDraft.battedBallType || "-"}</dd></div>
@@ -725,6 +894,9 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
             </button>
             <button type="button" onClick={() => setPlateStep(plateStep === "confirm" ? "runner" : "confirm")} className={`${btn} bg-stone-100 text-stone-800`}>
               {plateStep === "confirm" ? "戻って修正" : "確認画面へ"}
+            </button>
+            <button type="button" onClick={() => setPlateStep("pitch")} className={`${btn} bg-white text-stone-700 ring-1 ring-stone-300`}>
+              キャンセル
             </button>
             <button type="button" disabled={plateStep !== "confirm"} onClick={confirmPlateAppearance} className={`${btn} bg-emerald-700 text-white disabled:opacity-50`}>
               打席を確定

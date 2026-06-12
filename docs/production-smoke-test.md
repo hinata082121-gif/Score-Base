@@ -480,6 +480,10 @@ Implemented input UX changes:
 - Optional checkboxes can add new team names or new lineup players to the master data during save.
 - Plate appearance entry is now step-based: pitch record, pitch detail, batting record, batting detail, runner record, and confirmation.
 - Plate appearance confirmation is required before finalizing.
+- Scorebook game record now has a dark scoreboard-style header with team rows, 1-9 inning columns, R/H/E, current inning emphasis, and current attacking team emphasis.
+- The record step now shows a pitcher-vs-batter matchup card, tappable B/S/O dots, a compact runner diamond, and a horizontal pitch history strip.
+- Pitch detail entry was redesigned for mobile use with large pitch buttons, speed +/- controls, pitch-type buttons, and a 3x3 course grid.
+- The reference UI's photo/video area was intentionally not reproduced; Score Base uses that lower area for pitch detail, batting detail, runner, and confirmation controls.
 
 Verification after v0.7.4:
 
@@ -491,6 +495,7 @@ Verification after v0.7.4:
 - Scorebook form shows the three main steps.
 - Lineup step shows registered players when a registered team is selected.
 - Step-based plate appearance flow shows a confirmation card before save.
+- On iPhone-sized widths, the scoreboard can scroll horizontally, primary pitch buttons stay thumb-sized, and the dark record header should not create horizontal page overflow.
 - DB-backed save path still uses Server Actions and repository authorization.
 - localStorage guest save path still uses the existing local storage flow.
 - ExportSnapshot and AuditLog were not changed by v0.7.4 and should remain compatible.
