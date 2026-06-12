@@ -35,6 +35,15 @@ https://score-base.vercel.app
 - チーム詳細の選手一覧から、権限があるユーザーは登録済み選手を編集できます。
 - Player作成時は `ownerId` と `teamId` を保持し、所属チームのTeamMember roleに基づいて閲覧・編集を制御します。
 
+## v0.7.7 DB選手詳細
+
+- `/players/[id]` はDB保存済みPlayerをサーバー側で取得し、詳細、所属チーム、権限状態、簡易成績サマリを表示します。
+- 未ログインまたはローカル保存Playerでは従来どおりlocalStorageの選手詳細を表示します。
+- `/players` と `/teams/[id]` の選手一覧からDB保存済みPlayerの詳細ページへ遷移できます。
+- チーム詳細の詳細リンクは `/players/[playerId]?returnTo=/teams/[teamId]`、編集リンクは `/players/[playerId]/edit?returnTo=/teams/[teamId]` を使います。
+- DB保存済みPRIVATE Playerは、所有者、PUBLIC公開、または所属チームのactive TeamMemberだけが閲覧できます。編集はOWNER / ADMIN / EDITOR、または所有者に限定します。
+- schema変更なし。v0.7.7追加migrationはありません。
+
 ## v0.2 詳細スコアブック強化
 
 - 詳細スコアブック入力画面の固定サマリー

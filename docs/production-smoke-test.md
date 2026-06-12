@@ -562,3 +562,26 @@ v0.7.6 verification checklist:
 - Confirm SCORER / VIEWER cannot edit team players.
 - Confirm detailed scorebook lineup candidates include the team player after reload.
 - Confirm `Player.teamId` and `Player.ownerId` are populated in Supabase.
+
+## v0.7.7 DB Player Detail
+
+Date: 2026-06-12
+
+Implementation checks:
+
+- Confirm Vercel Production includes commit `ca40fdb` or later before testing this patch.
+- Open `/players` as a logged-in user and confirm DB保存 players have a `詳細` link.
+- Open a DB保存 player detail page and confirm the page does not fall back to localStorage not-found.
+- From `/teams/[id]`, open a player `詳細` link and confirm the player detail `戻る` button returns to `/teams/[id]`.
+- From `/teams/[id]`, open a player `編集` link and confirm the edit page keeps `returnTo=/teams/[id]`.
+- Confirm OWNER / ADMIN / EDITOR can edit team players.
+- Confirm SCORER / VIEWER can view team player details but cannot edit player master data.
+- Confirm unrelated users cannot open PRIVATE player detail pages.
+- Confirm `/players/[id]` still works for localStorage players in guest mode.
+- Confirm detailed scorebook lineup candidates still include team players after reload.
+
+Production checks still requiring manual access:
+
+- Exact deployed commit hash if the Vercel public page does not expose build metadata.
+- Supabase row-level confirmation for `Player.ownerId`, `Player.teamId`, and TeamMember role transitions.
+- Full two-user OWNER / VIEWER / SCORER / EDITOR / ADMIN role sweep.

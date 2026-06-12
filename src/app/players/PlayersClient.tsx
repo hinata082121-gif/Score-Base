@@ -74,7 +74,7 @@ export function PlayersClient({ dbPlayers, dbTeams, dbEnabled }: { dbPlayers: Db
                   <p className="text-sm text-stone-600">投: {player.throwingHand} / 打: {player.battingSide} / 守備: {player.primaryPosition || "-"}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {player.storage === "LOCAL" ? <Link className="rounded-md bg-emerald-700 px-3 py-2 text-sm font-bold text-white" href={`/players/${player.id}`}>詳細</Link> : null}
+                  <Link className="rounded-md bg-emerald-700 px-3 py-2 text-sm font-bold text-white" href={`/players/${player.id}${player.teamId ? `?returnTo=${encodeURIComponent(`/teams/${player.teamId}`)}` : ""}`}>詳細</Link>
                   {player.storage === "LOCAL" || player.canEdit ? <Link className="rounded-md bg-stone-100 px-3 py-2 text-sm font-bold text-stone-800" href={`/players/${player.id}/edit${player.teamId ? `?returnTo=${encodeURIComponent(`/teams/${player.teamId}`)}` : ""}`}>編集</Link> : <span className="rounded-md bg-stone-50 px-3 py-2 text-sm font-bold text-stone-500">閲覧のみ</span>}
                   {player.storage === "LOCAL" || player.canEdit ? <button disabled={isPending} className="rounded-md bg-red-50 px-3 py-2 text-sm font-bold text-red-700 disabled:opacity-50" onClick={() => remove(player.id)}>削除</button> : null}
                 </div>

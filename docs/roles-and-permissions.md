@@ -69,3 +69,11 @@ Server Actions must enforce these rules. UI button visibility is only a convenie
 - VIEWER can view team players but cannot edit player master data.
 - Player create/update/delete Server Actions enforce these rules through TeamMember role checks.
 - Team-created players keep both `teamId` and `ownerId`; `/players` lists both owner-created players and active TeamMember team players.
+
+## v0.7.7 Player Detail Notes
+
+- DB-backed `/players/[id]` uses server-side authorization before rendering player detail data.
+- PRIVATE players are visible to the owner, active TeamMembers of the attached team, or no one else.
+- PUBLIC players may be viewed without team membership after authentication resolves the request path.
+- OWNER / ADMIN / EDITOR can use detail and edit links from `/teams/[id]`; SCORER / VIEWER get detail access and read-only labels.
+- `returnTo` is accepted only as an internal path and is used to return from player detail or edit pages to the team detail page.

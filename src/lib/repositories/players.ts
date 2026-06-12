@@ -2,7 +2,7 @@ import { getMembership, PublicActionError, requireTeamRole } from "@/lib/auth/se
 import { getPrisma } from "@/lib/db/prisma";
 import { recordAuditLog } from "@/lib/repositories/auditLogs";
 
-type PlayerRow = { id: string; ownerId?: string | null; teamId?: string | null };
+type PlayerRow = { id: string; ownerId?: string | null; teamId?: string | null; visibility?: string | null };
 
 export type DbPlayerInput = {
   teamId?: string | null;
@@ -16,7 +16,7 @@ export type DbPlayerInput = {
   sourceLocalId?: string;
 };
 
-const includePlayer = { team: true, battingRecords: true, pitchingRecords: true };
+const includePlayer = { team: true, battingRecords: true, pitchingRecords: true, lineupEntries: true };
 
 async function canEditPlayer(player: { ownerId?: string | null; teamId?: string | null } | null, userId: string) {
   if (!player) throw new PublicActionError("選手が見つかりません。");
@@ -50,10 +50,10 @@ export async function getPlayerForUser(playerId: string, userId: string) {
   const prisma = await getPrisma();
   const player = await prisma.player.findUnique({ where: { id: playerId }, include: includePlayer }) as PlayerRow & Record<string, unknown> | null;
   if (!player) throw new PublicActionError("選手が見つかりません。");
-  if (player.ownerId !== userId && player.teamId && !(await getMembership(player.teamId, userId))) {
-    throw new PublicActionError("この選手を表示する権限がありません。");
-  }
-  return player;
+  if (player.ownerId === userId) return player;
+  if (player.visibility === "PUBLIC") return player;
+  if (player.teamId && await getMembership(player.teamId, userId)) return player;
+  throw new PublicActionError("この選手を表示する権限がありません。");
 }
 
 export async function createPlayerForUser(input: DbPlayerInput, userId: string) {

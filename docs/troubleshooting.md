@@ -161,3 +161,12 @@
 - SCORER / VIEWER は選手編集不可です。SCORERはスコアブック入力権限であり、選手マスタ編集権限ではありません。
 - UIに編集ボタンが出ていても、Server Action側の権限チェックが最終判断です。
 - 編集後にチーム詳細へ戻す場合は `/players/[id]/edit?returnTo=/teams/[teamId]` を使います。
+
+## DB保存済み選手の詳細ページが見つからない
+
+- v0.7.7以降、`/players/[id]` はログイン中ならDB保存済みPlayerを先に取得し、取得できない場合だけlocalStorage選手として扱います。
+- `/players` と `/teams/[id]` の選手行に `詳細` リンクが出ているか確認します。
+- PRIVATE Playerを表示できるのは、所有者、所属チームのactive TeamMember、またはPUBLIC公開Playerだけです。
+- チーム所属Playerの場合、`Player.teamId` と `TeamMember.status = ACTIVE` を確認します。
+- SCORER / VIEWER は詳細閲覧できますが、編集リンクは出ません。OWNER / ADMIN / EDITOR、または所有者だけが編集できます。
+- チーム詳細から戻る導線を維持する場合は `/players/[playerId]?returnTo=/teams/[teamId]` を使います。

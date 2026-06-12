@@ -60,7 +60,7 @@ export function TeamDetailClient({ id, initialTeam }: { id: string; initialTeam?
                     {player.memo ? <p className="mt-1 text-stone-600">{player.memo}</p> : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {team.storage !== "DB" ? <Link className="rounded-md bg-white px-3 py-2 text-xs font-bold text-stone-800 ring-1 ring-stone-200" href={`/players/${player.id}`}>詳細</Link> : null}
+                    <Link className="rounded-md bg-white px-3 py-2 text-xs font-bold text-stone-800 ring-1 ring-stone-200" href={`/players/${player.id}?returnTo=${encodeURIComponent(`/teams/${id}`)}`}>詳細</Link>
                     {canManagePlayers ? <Link className="rounded-md bg-emerald-700 px-3 py-2 text-xs font-bold text-white" href={`/players/${player.id}/edit?returnTo=${encodeURIComponent(`/teams/${id}`)}`}>編集</Link> : <span className="rounded-md bg-white px-3 py-2 text-xs font-bold text-stone-500 ring-1 ring-stone-200">閲覧のみ</span>}
                   </div>
                 </div>
