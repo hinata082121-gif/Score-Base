@@ -53,6 +53,15 @@ https://score-base.vercel.app
 - User Bの全role実データテスト、DB保存済みGameのExportSnapshot増加確認、RunnerEvent専用保存は未完了です。Runner stateは現状 `PlateAppearance.baseStateBefore/baseStateAfter` で保持し、RunnerEvent専用保存は次フェーズです。
 - schema変更なし。v0.7.8追加migrationはありません。
 
+## v0.7.9 DB Game Smoke Hardening
+
+- Production `/settings/deployment` でDB/Auth診断、Prisma接続、必須テーブル診断の成功を再確認しました。
+- Production `/games` で、不完全な詳細スコアブックDB行がある場合にServer Components render errorになる事象を確認しました。
+- DB保存済みGameの一覧・詳細変換を欠損値に強くし、壊れた1件でゲーム一覧全体が落ちないようにしました。
+- 詳細スコアブックの打席確定後、DB保存モードではPlateAppearance / PitchEventをServer Action経由で保存するようにしました。
+- RunnerEvent専用保存は引き続き未実装です。走者状態は `PlateAppearance.baseStateBefore/baseStateAfter` で保持します。
+- schema変更なし。v0.7.9追加migrationはありません。
+
 ## v0.2 詳細スコアブック強化
 
 - 詳細スコアブック入力画面の固定サマリー

@@ -25,17 +25,51 @@ function scoreNumber(value: number | "") {
   return value === "" ? 0 : Number(value || 0);
 }
 
+function numberValue(value: unknown, fallback = 0) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function asRows(value: unknown): DbGame[] {
+  return Array.isArray(value) ? value.filter(Boolean) as DbGame[] : [];
+}
+
+function gameMode(value: unknown): ScoreBaseGame["mode"] {
+  return value === "WATCH_ONLY" || value === "SIMPLE" || value === "SCOREBOOK" ? value : "WATCH_ONLY";
+}
+
+function gameStatus(value: unknown): ScoreBaseGame["status"] {
+  if (value === "CALLED" || value === "CALLED_GAME") return "CALLED_GAME";
+  return value === "SUSPENDED" || value === "CANCELLED" || value === "POSTPONED" || value === "NO_GAME" ? value : "NORMAL";
+}
+
+function teamSide(value: unknown): "HOME" | "AWAY" {
+  return value === "HOME" ? "HOME" : "AWAY";
+}
+
+function topBottom(value: unknown): "TOP" | "BOTTOM" {
+  return value === "BOTTOM" ? "BOTTOM" : "TOP";
+}
+
+function timeText(value: unknown) {
+  if (value instanceof Date) return value.toISOString().slice(11, 16);
+  return text(value).slice(0, 5);
+}
+
 export function dbGameToScoreBaseGame(game: DbGame): ScoreBaseGame {
   const now = new Date().toISOString();
-  const lineups = (game.lineups ?? []) as DbGame[];
-  const inningScores = (game.inningScores ?? []) as DbGame[];
-  const plateAppearances = (game.plateAppearances ?? []) as DbGame[];
+  const lineups = asRows(game.lineups);
+  const inningScores = asRows(game.inningScores);
+  const plateAppearances = asRows(game.plateAppearances);
+  const gameTeams = asRows(game.gameTeams);
+  const homeTeam = gameTeams.find((team) => teamSide(team.side) === "HOME");
+  const awayTeam = gameTeams.find((team) => teamSide(team.side) === "AWAY");
   return {
-    id: game.id,
+    id: text(game.id),
     teamId: text(game.teamId),
     homeTeamId: text(game.homeTeamId),
     awayTeamId: text(game.awayTeamId),
-    mode: game.mode,
+    mode: gameMode(game.mode),
     gameDate: dateText(game.gameDate),
     venue: text(game.venue),
     competition: text(game.competition),
@@ -51,45 +85,47 @@ export function dbGameToScoreBaseGame(game: DbGame): ScoreBaseGame {
     outcome: text(game.result),
     photoMemo: text(game.photoMemo),
     isPublic: Boolean(game.isPublic),
-    status: game.status ?? "NORMAL",
+    status: gameStatus(game.status),
     statusReason: text(game.statusReason),
-    startTime: game.startTime instanceof Date ? game.startTime.toISOString().slice(11, 16) : "",
-    endTime: game.endTime instanceof Date ? game.endTime.toISOString().slice(11, 16) : "",
+    startTime: timeText(game.startTime),
+    endTime: timeText(game.endTime),
     umpireMemo: text(game.umpireMemo),
     calledReason: text(game.calledReason),
-    pitcherHome: text(game.gameTeams?.find?.((team: DbGame) => team.side === "HOME")?.startingPitcher),
-    pitcherAway: text(game.gameTeams?.find?.((team: DbGame) => team.side === "AWAY")?.startingPitcher),
-    relayMemo: text(game.gameTeams?.map?.((team: DbGame) => team.relayMemo).filter(Boolean).join("\n")),
-    scoringMemo: text(game.gameTeams?.map?.((team: DbGame) => team.scoringMemo).filter(Boolean).join("\n")),
-    winningPitcher: text(game.gameTeams?.find?.((team: DbGame) => team.winningPitcher)?.winningPitcher),
-    losingPitcher: text(game.gameTeams?.find?.((team: DbGame) => team.losingPitcher)?.losingPitcher),
-    savePitcher: text(game.gameTeams?.find?.((team: DbGame) => team.savePitcher)?.savePitcher),
-    homerunMemo: text(game.gameTeams?.map?.((team: DbGame) => team.homerunMemo).filter(Boolean).join("\n")),
+    pitcherHome: text(homeTeam?.startingPitcher),
+    pitcherAway: text(awayTeam?.startingPitcher),
+    relayMemo: gameTeams.map((team) => text(team.relayMemo)).filter(Boolean).join("\n"),
+    scoringMemo: gameTeams.map((team) => text(team.scoringMemo)).filter(Boolean).join("\n"),
+    winningPitcher: text(gameTeams.find((team) => text(team.winningPitcher))?.winningPitcher),
+    losingPitcher: text(gameTeams.find((team) => text(team.losingPitcher))?.losingPitcher),
+    savePitcher: text(gameTeams.find((team) => text(team.savePitcher))?.savePitcher),
+    homerunMemo: gameTeams.map((team) => text(team.homerunMemo)).filter(Boolean).join("\n"),
     players: lineups.map((entry): PlayerInput => ({
-      id: entry.id,
-      teamSide: entry.teamSide,
-      battingOrder: entry.battingOrder ?? undefined,
+      id: text(entry.id),
+      teamSide: teamSide(entry.teamSide),
+      battingOrder: entry.battingOrder == null ? undefined : numberValue(entry.battingOrder),
       name: text(entry.playerName),
       position: text(entry.position),
       number: text(entry.uniformNumber ?? entry.number),
       role: entry.role === "BENCH" || !entry.isStarter ? "BENCH" : "STARTER",
     })),
     inningScores: inningScores.length > 0
-      ? inningScores.sort((a, b) => a.inning - b.inning).map((inning): InningScore => ({ inning: inning.inning, top: inning.topRuns ?? 0, bottom: inning.bottomRuns ?? 0 }))
+      ? inningScores
+        .sort((a, b) => numberValue(a.inning) - numberValue(b.inning))
+        .map((inning, index): InningScore => ({ inning: numberValue(inning.inning, index + 1), top: numberValue(inning.topRuns), bottom: numberValue(inning.bottomRuns) }))
       : defaultInnings(),
     plateAppearances: plateAppearances.map((pa): PlateAppearance => ({
-      id: pa.id,
-      inning: pa.inning,
-      topBottom: pa.topBottom,
-      battingOrder: pa.battingOrder,
+      id: text(pa.id),
+      inning: numberValue(pa.inning, 1),
+      topBottom: topBottom(pa.topBottom),
+      battingOrder: numberValue(pa.battingOrder, 1),
       batterName: text(pa.batterName),
       pitcherName: text(pa.pitcherName),
-      balls: pa.balls ?? 0,
-      strikes: pa.strikes ?? 0,
-      outsBefore: pa.outsBefore ?? 0,
-      outsAfter: pa.outsAfter ?? 0,
-      result: pa.result,
-      rbi: pa.rbi ?? 0,
+      balls: numberValue(pa.balls),
+      strikes: numberValue(pa.strikes),
+      outsBefore: numberValue(pa.outsBefore),
+      outsAfter: numberValue(pa.outsAfter),
+      result: text(pa.result) || "OTHER",
+      rbi: numberValue(pa.rbi),
       runScored: Boolean(pa.runScored),
       baseStateBefore: text(pa.baseStateBefore),
       baseStateAfter: text(pa.baseStateAfter),
@@ -97,11 +133,11 @@ export function dbGameToScoreBaseGame(game: DbGame): ScoreBaseGame {
       hitDirection: text(pa.hitDirection),
       battedBallType: text(pa.battedBallType),
       memo: text(pa.memo),
-      pitches: (pa.pitchEvents ?? []).sort((a: DbGame, b: DbGame) => a.pitchNumber - b.pitchNumber).map((pitch: DbGame): PitchEvent => ({
-        id: pitch.id,
-        pitchNumber: pitch.pitchNumber,
-        pitchCall: pitch.pitchCall,
-        speedKmh: pitch.speedKmh ?? undefined,
+      pitches: asRows(pa.pitchEvents).sort((a, b) => numberValue(a.pitchNumber) - numberValue(b.pitchNumber)).map((pitch, index): PitchEvent => ({
+        id: text(pitch.id),
+        pitchNumber: numberValue(pitch.pitchNumber, index + 1),
+        pitchCall: text(pitch.pitchCall) || "OTHER",
+        speedKmh: pitch.speedKmh == null ? undefined : numberValue(pitch.speedKmh),
         pitchType: text(pitch.pitchType),
         course: text(pitch.course),
         memo: text(pitch.memo),
@@ -112,6 +148,56 @@ export function dbGameToScoreBaseGame(game: DbGame): ScoreBaseGame {
     createdAt: game.createdAt instanceof Date ? game.createdAt.toISOString() : now,
     updatedAt: game.updatedAt instanceof Date ? game.updatedAt.toISOString() : now,
   };
+}
+
+function safeDbGameToScoreBaseGame(game: DbGame): ScoreBaseGame {
+  try {
+    return dbGameToScoreBaseGame(game);
+  } catch {
+    const now = new Date().toISOString();
+    return {
+      id: text(game.id),
+      teamId: text(game.teamId),
+      homeTeamId: text(game.homeTeamId),
+      awayTeamId: text(game.awayTeamId),
+      mode: gameMode(game.mode),
+      gameDate: dateText(game.gameDate),
+      venue: text(game.venue),
+      competition: text(game.competition),
+      homeTeamName: text(game.homeTeamName) || "ホーム",
+      awayTeamName: text(game.awayTeamName) || "ビジター",
+      favoriteTeamName: text(game.favoriteTeamName),
+      weather: text(game.weather),
+      seatMemo: text(game.seatMemo),
+      watchMemo: text(game.watchMemo),
+      impressivePlayer: text(game.impressivePlayer),
+      mvp: text(game.mvp),
+      result: text(game.result),
+      outcome: text(game.result),
+      photoMemo: text(game.photoMemo),
+      isPublic: Boolean(game.isPublic),
+      status: gameStatus(game.status),
+      statusReason: text(game.statusReason),
+      startTime: timeText(game.startTime),
+      endTime: timeText(game.endTime),
+      umpireMemo: text(game.umpireMemo),
+      calledReason: text(game.calledReason),
+      pitcherHome: "",
+      pitcherAway: "",
+      relayMemo: "",
+      scoringMemo: "",
+      winningPitcher: "",
+      losingPitcher: "",
+      savePitcher: "",
+      homerunMemo: "",
+      players: [],
+      inningScores: defaultInnings(),
+      plateAppearances: [],
+      runnerState: { first: "", second: "", third: "" },
+      createdAt: game.createdAt instanceof Date ? game.createdAt.toISOString() : now,
+      updatedAt: game.updatedAt instanceof Date ? game.updatedAt.toISOString() : now,
+    };
+  }
 }
 
 const includeGame = {
@@ -285,13 +371,13 @@ export async function listGamesForUser(userId: string) {
     orderBy: { gameDate: "desc" },
     include: includeGame,
   }) as DbGame[];
-  return rows.map(dbGameToScoreBaseGame);
+  return rows.map(safeDbGameToScoreBaseGame);
 }
 
 export async function getGameByIdForUser(id: string, userId: string) {
   const prisma = await getPrisma();
   const row = await prisma.game.findUnique({ where: { id }, include: includeGame }) as DbGame | null;
-  return dbGameToScoreBaseGame(await assertCanView(row, userId));
+  return safeDbGameToScoreBaseGame(await assertCanView(row, userId));
 }
 
 export async function createGameForUser(input: ScoreBaseGame, userId: string) {
@@ -302,14 +388,14 @@ export async function createGameForUser(input: ScoreBaseGame, userId: string) {
       where: input.teamId ? { teamId: input.teamId, sourceLocalId: input.sourceLocalId } : { ownerId: userId, sourceLocalId: input.sourceLocalId },
       include: includeGame,
     }) as DbGame | null;
-    if (existing) return dbGameToScoreBaseGame(existing);
+    if (existing) return safeDbGameToScoreBaseGame(existing);
   }
   const row = await prisma.game.create({
     data: { userId, ownerId: userId, createdById: userId, updatedById: userId, ...baseGameData(input), ...nestedGameData(input) },
     include: includeGame,
   }) as DbGame;
   await recordAuditLog({ userId, teamId: text(row.teamId), action: "CREATE", resourceType: "Game", resourceId: text(row.id), detail: `${input.awayTeamName} vs ${input.homeTeamName}` });
-  return dbGameToScoreBaseGame(row);
+  return safeDbGameToScoreBaseGame(row);
 }
 
 export async function updateGameForUser(id: string, input: ScoreBaseGame, userId: string) {
@@ -334,7 +420,7 @@ export async function updateGameForUser(id: string, input: ScoreBaseGame, userId
     include: includeGame,
   }) as DbGame;
   await recordAuditLog({ userId, teamId: text(row.teamId), action: "UPDATE", resourceType: "Game", resourceId: id, detail: input.mode });
-  return dbGameToScoreBaseGame(row);
+  return safeDbGameToScoreBaseGame(row);
 }
 
 export async function deleteGameForUser(id: string, userId: string) {

@@ -178,3 +178,11 @@
 - チーム所属Playerの場合、`Player.teamId` と `TeamMember.status = ACTIVE` を確認します。
 - SCORER / VIEWER は詳細閲覧できますが、編集リンクは出ません。OWNER / ADMIN / EDITOR、または所有者だけが編集できます。
 - チーム詳細から戻る導線を維持する場合は `/players/[playerId]?returnTo=/teams/[teamId]` を使います。
+
+## /games が This page couldn't load になる
+
+- DB保存済みGameの関連行が不完全な場合、Server Components側で一覧変換に失敗すると `/games` 全体が表示できなくなります。
+- v0.7.9以降、DB Game変換は欠損値、null relation、想定外のmode/status/side/topBottom、数値化できないinningやpitchNumberを正規化します。
+- 1件の壊れたDB行で一覧全体を落とさないため、`listGamesForUser` と `getGameByIdForUser` は安全な変換を使います。
+- 再発時は、直近で作成したsmoke test用Gameの `LineupEntry`、`InningScore`、`PlateAppearance`、`PitchEvent` をSupabase Table Editorで確認し、必須値がnullや想定外文字列になっていないか確認します。
+- 破損データを削除する前に、Vercel Productionがv0.7.9以降のcommitへ更新済みか確認してください。

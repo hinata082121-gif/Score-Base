@@ -85,3 +85,10 @@ Server Actions must enforce these rules. UI button visibility is only a convenie
 - SCORER and VIEWER were not re-tested in this pass because a second authenticated test user session is required.
 - Next manual role test: User B accepts a VIEWER invitation, then User A changes User B through SCORER, EDITOR, and ADMIN while checking scorebook input, player/team editing, invitation management, and Game deletion boundaries.
 - Server Action authorization remains the source of truth; UI visibility alone is not sufficient.
+
+## v0.7.9 Role Smoke Status
+
+- The v0.7.9 pass focused on DB-backed Game route hardening and live-input persistence after plate appearance confirmation.
+- Two-user Production role checks were not completed before the hardening patch because `/games` reproduced a Server Components render error against incomplete smoke data.
+- After the fixed deploy is live, repeat the User B sweep: VIEWER can view only, SCORER can input scorebook but cannot delete games, EDITOR can edit team/player data but cannot manage members, and ADMIN can manage invitations/members and delete team games.
+- Confirm role behavior with real Server Action results and Supabase row changes, not only button visibility.

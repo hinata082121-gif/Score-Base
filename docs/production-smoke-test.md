@@ -663,3 +663,38 @@ Local command results:
 - `npx prisma migrate status`: not run because the local `DATABASE_URL` was present but not safely classifiable without exposing or trusting a secret value.
 
 No code changes were required by this v0.7.8 pass. Documentation was updated to record completed and pending smoke checks.
+
+## v0.7.9 Production DB Game Smoke Hardening
+
+Date: 2026-06-12
+
+Baseline:
+
+- Local latest commit before this pass: `b87c376 docs: record v0.7.8 production smoke test`.
+- Production pages checked: `/`, `/settings/deployment`, `/settings/release-checklist`, `/players`, `/teams`, `/games`.
+- Public HTML still does not expose a deployment commit hash. Confirm the exact Production commit in the Vercel Dashboard.
+- `/settings/deployment` showed `DATABASE_URL` configured, `AUTH_SECRET` configured, Prisma connection success, required table diagnostic success, and no Auth URL mismatch.
+- Console error/warn during the initial page sweep: 0 until `/games` later reproduced a Server Components render error.
+
+Production issue found:
+
+- `/games` showed `This page couldn't load` after an incomplete DB scorebook smoke record existed.
+- The error happened during Server Components rendering, before the client game list could recover.
+- Likely cause: DB-backed `Game` conversion assumed complete related rows and enum-like values. Incomplete smoke data should not make the whole game list unavailable.
+
+Fix implemented:
+
+- DB `Game` to `ScoreBaseGame` conversion now normalizes nullable/invalid scalar values, relation arrays, team side, top/bottom, mode, status, inning numbers, and pitch values.
+- `listGamesForUser` and `getGameByIdForUser` use a safe converter so one malformed DB game row cannot crash the full list/detail route.
+- Detailed scorebook live input now persists after `打席を確定` in DB save mode, so confirmed PlateAppearance / PitchEvent data is sent through the existing Server Action save path.
+
+Verification status:
+
+- Local `npm run lint`: passed.
+- Local `npx prisma validate`: passed.
+- Local build and post-push Production re-check must be run after this patch is committed and deployed.
+- Full live-input DB smoke, reload/relogin retention, Supabase Table Editor row counts, User B role sweep, and DB ExportSnapshot increment remain manual follow-up until the fixed deploy is live.
+
+Known remaining gap:
+
+- Dedicated `RunnerEvent` save is still not implemented. Runner state remains represented by `PlateAppearance.baseStateBefore` and `PlateAppearance.baseStateAfter`.

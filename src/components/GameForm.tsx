@@ -275,6 +275,16 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
     setSavedLabel("編集中");
   }
 
+  function rememberAndPersist(next: ScoreBaseGame) {
+    const previous = game;
+    remember(next);
+    if (!dbEnabled) return;
+    startTransition(async () => {
+      const ok = await persistGame(false, next);
+      if (!ok) setGame(previous);
+    });
+  }
+
   async function createTeamFromName(name: string) {
     if (!name.trim()) return undefined;
     if (dbEnabled) {
@@ -475,7 +485,7 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
       pitches: draftPitches,
       createdAt: new Date().toISOString(),
     };
-    remember({ ...game, plateAppearances: [...game.plateAppearances, pa], updatedAt: new Date().toISOString() });
+    rememberAndPersist({ ...game, plateAppearances: [...game.plateAppearances, pa], updatedAt: new Date().toISOString() });
     setPaDraft((current) => ({
       ...current,
       battingOrder: current.battingOrder === 9 ? 1 : current.battingOrder + 1,
