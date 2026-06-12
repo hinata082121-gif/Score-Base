@@ -506,3 +506,34 @@ Smoke test still pending:
 - CSV output check.
 - share/copy output check.
 - Re-run DB persistence checks after the v0.7.4 input UX deploy.
+
+## v0.7.5 Mobile Scorebook Flow
+
+Date: 2026-06-12
+
+Implemented flow:
+
+- Detailed scorebook mode now uses game details, details confirmation, lineup input, lineup confirmation, game start, and live input.
+- The details confirmation step shows game date, venue, competition, teams, favorite team, weather, status, score, outcome, memo, save target, and edit state.
+- The lineup confirmation step shows both teams, batting order, player name, number, position, starter/bench state, linked/new player hints, warnings, and a note that destructive lineup editing is restricted after game start.
+- Live input uses a mobile-first, near-fullscreen layout with a sticky top scoreboard.
+- The sticky scoreboard shows innings 1-9 plus R/H/E, current inning emphasis, and current attacking team emphasis.
+- `/games/[id]/scorebook` opens the input flow for SCOREBOOK games; non-SCOREBOOK records continue to use the scorebook display table.
+- Repository logic rejects destructive lineup changes when existing PlateAppearance rows are present.
+
+v0.7.5 verification checklist:
+
+- Create or open detailed scorebook mode.
+- Confirm game details input.
+- Confirm game details confirmation.
+- Confirm lineup input.
+- Confirm lineup confirmation, including warnings for fewer than 9 starters.
+- Start the game and enter live input.
+- Confirm sticky scoreboard is visible while scrolling.
+- Confirm 1-9 inning cells and R/H/E are visible.
+- Confirm current inning and attacking team are emphasized.
+- Confirm lineup edit is not offered after game start.
+- Confirm SCORER can input and VIEWER cannot input in the User B smoke flow.
+- Confirm plate appearance finalization still saves PlateAppearance and PitchEvent.
+- Confirm DB save and localStorage guest save both keep data after reload.
+- Resume User B / CSV / share smoke tests after the v0.7.5 flow passes.

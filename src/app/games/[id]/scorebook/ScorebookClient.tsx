@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { GameForm } from "@/components/GameForm";
 import { PageShell } from "@/components/PageShell";
 import { ScorebookTable } from "@/components/ScorebookTable";
 import { loadGame, loadSettings } from "@/lib/storage";
@@ -19,6 +20,13 @@ export function ScorebookClient({ id, initialGame, dbEnabled = false }: { id: st
 
   if (!ready) return <PageShell title="スコアブック"><div className="rounded-md bg-white p-6">読み込み中です。</div></PageShell>;
   if (!game) return <PageShell title="スコアブック"><div className="rounded-md bg-white p-6">記録が見つかりません。</div></PageShell>;
+  if (game.mode === "SCOREBOOK") {
+    return (
+      <PageShell title="スコアブック入力" lead="試合詳細確認、スタメン確認、試合開始を経て、スマホ全画面に近い入力UIで記録します。">
+        <GameForm mode="SCOREBOOK" editId={id} initialGame={game} dbEnabled={dbEnabled} />
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell title="スコアブック表示" lead="内部データは共通のまま、表示テンプレートだけを切り替えます。">

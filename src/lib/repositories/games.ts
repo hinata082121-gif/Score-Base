@@ -247,6 +247,31 @@ function nestedGameData(input: ScoreBaseGame) {
   };
 }
 
+function lineupSignature(players: PlayerInput[]) {
+  return players
+    .map((player) => ({
+      teamSide: player.teamSide,
+      battingOrder: player.battingOrder ?? null,
+      name: player.name.trim(),
+      position: player.position.trim(),
+      number: player.number.trim(),
+      role: player.role ?? "STARTER",
+    }))
+    .sort((a, b) => `${a.teamSide}:${a.battingOrder ?? 999}:${a.name}:${a.role}`.localeCompare(`${b.teamSide}:${b.battingOrder ?? 999}:${b.name}:${b.role}`));
+}
+
+function dbLineupSignature(lineups: DbGame[]) {
+  return lineupSignature(lineups.map((entry): PlayerInput => ({
+    id: text(entry.id),
+    teamSide: entry.teamSide,
+    battingOrder: entry.battingOrder ?? undefined,
+    name: text(entry.playerName),
+    position: text(entry.position),
+    number: text(entry.uniformNumber ?? entry.number),
+    role: entry.role === "BENCH" || !entry.isStarter ? "BENCH" : "STARTER",
+  })));
+}
+
 export async function listGamesForUser(userId: string) {
   const prisma = await getPrisma();
   const rows = await prisma.game.findMany({
@@ -289,8 +314,12 @@ export async function createGameForUser(input: ScoreBaseGame, userId: string) {
 
 export async function updateGameForUser(id: string, input: ScoreBaseGame, userId: string) {
   const prisma = await getPrisma();
-  const current = await assertCanEdit(await prisma.game.findUnique({ where: { id } }) as DbGame | null, userId);
+  const current = await assertCanEdit(await prisma.game.findUnique({ where: { id }, include: { lineups: true, plateAppearances: true } }) as DbGame | null, userId);
   if (input.teamId && input.teamId !== current.teamId) await requireTeamRole(input.teamId, userId, ["OWNER", "ADMIN", "EDITOR", "SCORER"]);
+  if ((current.plateAppearances?.length ?? 0) > 0 && JSON.stringify(dbLineupSignature(current.lineups ?? [])) !== JSON.stringify(lineupSignature(input.players))) {
+    await recordAuditLog({ userId, teamId: text(current.teamId), action: "LINEUP_EDIT_BLOCKED", resourceType: "Game", resourceId: id, detail: "plate appearances already exist" });
+    throw new PublicActionError("既存打席があるため、スタメンの破壊的変更はできません。選手交代機能は次フェーズで対応します。");
+  }
   const row = await prisma.game.update({
     where: { id },
     data: {

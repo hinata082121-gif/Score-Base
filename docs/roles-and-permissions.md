@@ -52,3 +52,12 @@ Server Actions must enforce these rules. UI button visibility is only a convenie
 - ADMIN: can manage invitations and members, can delete team games, cannot remove or downgrade the last OWNER.
 - OWNER: full team control; OWNER invitations are intentionally rejected.
 - Check Server Action failures from the UI and Supabase row changes together. UI button visibility alone is not sufficient.
+
+## v0.7.5 Scorebook Setup Notes
+
+- SCOREBOOK games use details confirmation, lineup confirmation, game start, then live input.
+- SCORER can enter live scorebook records for team games.
+- VIEWER can view but cannot enter or save scorebook records.
+- After game start, the UI does not offer normal lineup editing.
+- If a Game already has PlateAppearance rows, repository logic rejects destructive LineupEntry changes even for OWNER / ADMIN / EDITOR / SCORER.
+- Pinch hitter, defensive substitution, and pitching change workflows are planned as a separate player-substitution phase.
