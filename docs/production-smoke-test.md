@@ -781,6 +781,12 @@ Still requiring authenticated Production access:
 - Supabase Table Editor verification.
 - User B VIEWER / SCORER / EDITOR / ADMIN smoke test.
 
+Post-push public check:
+
+- After pushing the v0.7.11 code commit, `/games` rendered the list and showed the new wording that separates DB保存済みデータ and 端末内データ.
+- `/games` did not show `This page couldn't load`.
+- Browser-side captured logs still included a generic Server Components render error entry. Runtime Logs are required to determine whether it is a new production request error or a retained browser-session log entry.
+
 RunnerEvent status:
 
 - Dedicated `RunnerEvent` persistence remains unimplemented.
