@@ -13,6 +13,18 @@ import type { ScoreBaseGame } from "@/lib/types";
 
 type ListedGame = ScoreBaseGame & { storage: "DB" | "LOCAL" };
 
+function labelMode(mode: string) {
+  return modeLabels[mode as keyof typeof modeLabels] ?? "不明なモード";
+}
+
+function labelStatus(status: string) {
+  return statusLabels[status as keyof typeof statusLabels] ?? "状態未設定";
+}
+
+function labelDate(value: string) {
+  return value && !Number.isNaN(new Date(value).getTime()) ? value : "日付未設定";
+}
+
 function inPeriod(dateText: string, period: string, start: string, end: string) {
   const date = new Date(dateText);
   const today = new Date();
@@ -30,7 +42,7 @@ function inPeriod(dateText: string, period: string, start: string, end: string) 
   return true;
 }
 
-export function GamesListClient({ dbGames, dbEnabled }: { dbGames: ScoreBaseGame[]; dbEnabled: boolean }) {
+export function GamesListClient({ dbGames, dbEnabled, dbLoadFailed = false }: { dbGames: ScoreBaseGame[]; dbEnabled: boolean; dbLoadFailed?: boolean }) {
   const router = useRouter();
   const [games, setGames] = useState<ListedGame[]>(dbGames.map((game) => ({ ...game, storage: "DB" })));
   const [ready, setReady] = useState(false);
@@ -96,6 +108,7 @@ export function GamesListClient({ dbGames, dbEnabled }: { dbGames: ScoreBaseGame
         <div className="rounded-md bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-900 sm:col-span-4">
           {dbEnabled ? "ログイン中: DB保存済みデータとローカル保存データを分けて表示します。" : "未ログイン: ゲストモードとしてローカル保存データのみ表示します。DB保存にはログインしてください。"}
         </div>
+        {dbLoadFailed ? <p className="rounded-md bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800 sm:col-span-4">DB保存済みの観戦記録を一部読み込めませんでした。ローカル保存データは表示できます。</p> : null}
         {message ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm font-bold text-red-700 sm:col-span-4">{message}</p> : null}
         <label className="text-sm font-bold text-stone-700">期間<select className="mt-1 min-h-11 w-full rounded-md border border-stone-300 px-3" value={period} onChange={(e) => setPeriod(e.target.value)}><option value="all">全期間</option><option value="today">今日</option><option value="week">今週</option><option value="month">今月</option><option value="year">今年</option><option value="custom">カスタム期間</option></select></label>
         <label className="text-sm font-bold text-stone-700">開始日<input className={`mt-1 min-h-11 w-full rounded-md border px-3 ${customDateError && !start ? "border-red-300 bg-red-50" : "border-stone-300"}`} type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
@@ -115,9 +128,9 @@ export function GamesListClient({ dbGames, dbEnabled }: { dbGames: ScoreBaseGame
             <article key={game.id} className="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-bold text-emerald-700">{game.gameDate} / {modeLabels[game.mode]} / {game.storage === "DB" ? "DB保存" : "ローカル保存"}</p>
-                  <h2 className="mt-1 text-lg font-black text-stone-950">{game.awayTeamName || "ビジター"} vs {game.homeTeamName || "ホーム"}</h2>
-                  <p className="text-sm text-stone-600">{game.venue || "球場未入力"} / {statusLabels[game.status]} / {score.away}-{score.home}</p>
+                  <p className="text-sm font-bold text-emerald-700">{labelDate(game.gameDate)} / {labelMode(game.mode)} / {game.storage === "DB" ? "DB保存" : "ローカル保存"}</p>
+                  <h2 className="mt-1 text-lg font-black text-stone-950">{game.awayTeamName || "未設定チーム"} vs {game.homeTeamName || "未設定チーム"}</h2>
+                  <p className="text-sm text-stone-600">{game.venue || "球場未入力"} / {labelStatus(game.status)} / {score.away}-{score.home}</p>
                   <p className="mt-1 text-sm text-stone-600">応援: {game.favoriteTeamName || "-"} / 勝敗: {game.result || "-"}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">

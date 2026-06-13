@@ -35,8 +35,9 @@ function directionLabel(value?: string) {
 }
 
 export function ScorebookTable({ game, style }: { game: ScoreBaseGame; style: ScorebookStyle }) {
-  const innings = Array.from(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, ...game.plateAppearances.map((pa) => pa.inning)]));
-  const orders = Array.from(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, ...game.plateAppearances.map((pa) => pa.battingOrder)])).sort((a, b) => a - b);
+  const plateAppearances = Array.isArray(game.plateAppearances) ? game.plateAppearances : [];
+  const innings = Array.from(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, ...plateAppearances.map((pa) => pa.inning)]));
+  const orders = Array.from(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, ...plateAppearances.map((pa) => pa.battingOrder)])).sort((a, b) => a - b);
   const filename = `score-base-${safeFilename(game.gameDate)}-${safeFilename(game.awayTeamName || "away")}-vs-${safeFilename(game.homeTeamName || "home")}.png`;
   const teams = [
     { side: "TOP" as const, name: game.awayTeamName || "ビジター" },
@@ -57,8 +58,8 @@ export function ScorebookTable({ game, style }: { game: ScoreBaseGame; style: Sc
           <div className="mb-3 flex items-end justify-between gap-6">
             <div>
               <p className="text-xs font-bold text-emerald-700">Score Base</p>
-              <h3 className="text-xl font-black text-stone-950">{game.awayTeamName} vs {game.homeTeamName}</h3>
-              <p className="text-sm text-stone-600">{game.gameDate} / {game.venue} / {game.competition}</p>
+              <h3 className="text-xl font-black text-stone-950">{game.awayTeamName || "未設定チーム"} vs {game.homeTeamName || "未設定チーム"}</h3>
+              <p className="text-sm text-stone-600">{game.gameDate || "日付未設定"} / {game.venue || "球場未入力"} / {game.competition || "-"}</p>
             </div>
             <p className="text-sm font-bold text-stone-700">{style === "WASEDA" ? "早稲田式テンプレート" : "慶應式テンプレート"}</p>
           </div>
@@ -80,11 +81,11 @@ export function ScorebookTable({ game, style }: { game: ScoreBaseGame; style: Sc
                       <tr key={`${team.side}-${order}`}>
                         <th className="sticky left-0 z-10 border border-stone-400 bg-white p-2 text-stone-900">{order}番</th>
                         {innings.map((inning) => {
-                          const plateAppearances = game.plateAppearances.filter((item) => item.topBottom === team.side && item.battingOrder === order && item.inning === inning);
+                          const cellPlateAppearances = plateAppearances.filter((item) => item.topBottom === team.side && item.battingOrder === order && item.inning === inning);
                           return (
                             <td key={`${team.side}-${order}-${inning}`} className={`h-32 w-32 border border-stone-400 p-1 align-top ${cellClass(style)}`}>
                               <div className="flex h-full flex-col gap-1">
-                                {plateAppearances.map((pa) => (
+                                {cellPlateAppearances.map((pa) => (
                                   <div key={pa.id} className={`flex flex-1 flex-col justify-between rounded-sm p-1 ${style === "WASEDA" ? "bg-white/90 ring-1 ring-emerald-100" : "bg-white/95"}`}>
                                     <div className="flex items-start justify-between gap-1">
                                       <p className="max-w-16 truncate font-black text-stone-950">{pa.batterName || `${order}番`}</p>

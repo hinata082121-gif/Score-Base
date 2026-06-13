@@ -14,6 +14,14 @@ import { deleteGame, duplicateLocalGame, loadGame } from "@/lib/storage";
 import { scoreFor } from "@/lib/stats";
 import type { ScoreBaseGame } from "@/lib/types";
 
+function labelMode(mode: string) {
+  return modeLabels[mode as keyof typeof modeLabels] ?? "不明なモード";
+}
+
+function labelStatus(status: string) {
+  return statusLabels[status as keyof typeof statusLabels] ?? "状態未設定";
+}
+
 export function GameDetailClient({ id, initialGame, dbEnabled = false }: { id: string; initialGame?: ScoreBaseGame | null; dbEnabled?: boolean }) {
   const router = useRouter();
   const [game, setGame] = useState<ScoreBaseGame | null>(initialGame ?? null);
@@ -30,6 +38,9 @@ export function GameDetailClient({ id, initialGame, dbEnabled = false }: { id: s
   }
 
   const score = scoreFor(game);
+  const inningScores = Array.isArray(game.inningScores) ? game.inningScores : [];
+  const players = Array.isArray(game.players) ? game.players : [];
+  const plateAppearances = Array.isArray(game.plateAppearances) ? game.plateAppearances : [];
   const shareText = `Score Baseで記録しました\n${game.awayTeamName} vs ${game.homeTeamName}\n${game.gameDate} / ${game.venue || "-"}\n${score.away} - ${score.home}\n#ScoreBase #野球観戦記録`;
 
   async function recordExport(type: "CSV" | "SHARE_TEXT", fileName: string) {
@@ -74,13 +85,13 @@ export function GameDetailClient({ id, initialGame, dbEnabled = false }: { id: s
   }
 
   return (
-    <PageShell title={`${game.awayTeamName || "ビジター"} vs ${game.homeTeamName || "ホーム"}`} lead={`${game.gameDate} / ${game.venue || "球場未入力"} / ${modeLabels[game.mode]}`}>
+    <PageShell title={`${game.awayTeamName || "未設定チーム"} vs ${game.homeTeamName || "未設定チーム"}`} lead={`${game.gameDate || "日付未設定"} / ${game.venue || "球場未入力"} / ${labelMode(game.mode)}`}>
       <div className="space-y-4">
         <section className="grid gap-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-4">
           {message ? <p className="rounded-md bg-red-50 p-3 text-sm font-bold text-red-700 sm:col-span-4">{message}</p> : null}
           <div className="rounded-md bg-emerald-50 p-3 text-sm font-bold text-emerald-900 sm:col-span-4">{dbEnabled ? "DB保存済み" : "ローカル保存"}</div>
           <div><p className="text-xs font-bold text-stone-500">スコア</p><p className="text-2xl font-black text-stone-950">{score.away}-{score.home}</p></div>
-          <div><p className="text-xs font-bold text-stone-500">試合状態</p><p className="font-black text-stone-950">{statusLabels[game.status]}</p></div>
+          <div><p className="text-xs font-bold text-stone-500">試合状態</p><p className="font-black text-stone-950">{labelStatus(game.status)}</p></div>
           <div><p className="text-xs font-bold text-stone-500">応援</p><p className="font-black text-stone-950">{game.favoriteTeamName || "-"}</p></div>
           <div><p className="text-xs font-bold text-stone-500">MVP</p><p className="font-black text-stone-950">{game.mvp || "-"}</p></div>
         </section>
@@ -99,10 +110,10 @@ export function GameDetailClient({ id, initialGame, dbEnabled = false }: { id: s
             <h2 className="mb-3 text-lg font-black text-stone-950">簡易記録</h2>
             <div className="overflow-x-auto">
               <table className="w-max min-w-full text-sm">
-                <thead><tr><th className="p-2 text-left">攻撃</th>{game.inningScores.map((inning) => <th key={inning.inning} className="p-2">{inning.inning}</th>)}<th className="p-2">R</th></tr></thead>
+                <thead><tr><th className="p-2 text-left">攻撃</th>{inningScores.map((inning) => <th key={inning.inning} className="p-2">{inning.inning}</th>)}<th className="p-2">R</th></tr></thead>
                 <tbody>
-                  <tr><th className="p-2 text-left">{game.awayTeamName}</th>{game.inningScores.map((inning) => <td key={inning.inning} className="p-2 text-center">{inning.top || 0}</td>)}<td className="p-2 text-center font-black">{score.away}</td></tr>
-                  <tr><th className="p-2 text-left">{game.homeTeamName}</th>{game.inningScores.map((inning) => <td key={inning.inning} className="p-2 text-center">{inning.bottom || 0}</td>)}<td className="p-2 text-center font-black">{score.home}</td></tr>
+                  <tr><th className="p-2 text-left">{game.awayTeamName || "未設定チーム"}</th>{inningScores.map((inning) => <td key={inning.inning} className="p-2 text-center">{inning.top || 0}</td>)}<td className="p-2 text-center font-black">{score.away}</td></tr>
+                  <tr><th className="p-2 text-left">{game.homeTeamName || "未設定チーム"}</th>{inningScores.map((inning) => <td key={inning.inning} className="p-2 text-center">{inning.bottom || 0}</td>)}<td className="p-2 text-center font-black">{score.home}</td></tr>
                 </tbody>
               </table>
             </div>
@@ -111,7 +122,7 @@ export function GameDetailClient({ id, initialGame, dbEnabled = false }: { id: s
         ) : null}
         <section className="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
           <h2 className="text-lg font-black text-stone-950">記録管理</h2>
-          <p className="mt-2 text-sm text-stone-600">スタメン {game.players.length}件 / 打席記録 {game.plateAppearances.length}件</p>
+          <p className="mt-2 text-sm text-stone-600">スタメン {players.length}件 / 打席記録 {plateAppearances.length}件</p>
         </section>
         <div className="flex flex-wrap gap-2">
           <Link className="rounded-md bg-stone-900 px-4 py-3 text-sm font-bold text-white" href={`/games/${game.id}/edit`}>編集</Link>

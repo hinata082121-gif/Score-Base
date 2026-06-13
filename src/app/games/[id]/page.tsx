@@ -4,7 +4,7 @@ import { getGameByIdForUser } from "@/lib/repositories/games";
 
 export default async function GameDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const user = await getCurrentUserOrNull();
+  const user = await getCurrentUserOrNull().catch(() => null);
   const dbGame = user ? await getGameByIdForUser(id, user.id).catch(() => null) : null;
   return <GameDetailClient id={id} initialGame={dbGame} dbEnabled={Boolean(dbGame)} />;
 }

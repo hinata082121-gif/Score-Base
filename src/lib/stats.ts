@@ -31,7 +31,8 @@ function isWin(game: ScoreBaseGame, team: string) {
 }
 
 export function scoreFor(game: ScoreBaseGame) {
-  return game.inningScores.reduce(
+  const inningScores = Array.isArray(game.inningScores) ? game.inningScores : [];
+  return inningScores.reduce(
     (sum, inning) => ({
       away: sum.away + (Number(inning.top) || 0),
       home: sum.home + (Number(inning.bottom) || 0),
@@ -43,7 +44,8 @@ export function scoreFor(game: ScoreBaseGame) {
 export function playerStats(games: ScoreBaseGame[]) {
   const rows = new Map<string, { name: string; games: Set<string>; pa: number; ab: number; h: number; doubles: number; triples: number; hr: number; rbi: number; runs: number; bb: number; hbp: number; so: number; sb: number; sf: number }>();
   for (const game of games) {
-    for (const pa of game.plateAppearances) {
+    const plateAppearances = Array.isArray(game.plateAppearances) ? game.plateAppearances : [];
+    for (const pa of plateAppearances) {
       const row = rows.get(pa.batterName) ?? { name: pa.batterName, games: new Set<string>(), pa: 0, ab: 0, h: 0, doubles: 0, triples: 0, hr: 0, rbi: 0, runs: 0, bb: 0, hbp: 0, so: 0, sb: 0, sf: 0 };
       row.games.add(game.id);
       row.pa += 1;
@@ -73,7 +75,7 @@ export function playerStats(games: ScoreBaseGame[]) {
 
 export function pitcherStats(games: ScoreBaseGame[]) {
   const rows = new Map<string, { name: string; games: Set<string>; outs: number; h: number; so: number; bb: number; runs: number; er: number }>();
-  const appearances = games.flatMap((game) => game.plateAppearances.map((pa) => ({ game, pa })));
+  const appearances = games.flatMap((game) => (Array.isArray(game.plateAppearances) ? game.plateAppearances : []).map((pa) => ({ game, pa })));
   for (const { game, pa } of appearances) {
     if (!pa.pitcherName) continue;
     const row = rows.get(pa.pitcherName) ?? { name: pa.pitcherName, games: new Set<string>(), outs: 0, h: 0, so: 0, bb: 0, runs: 0, er: 0 };
@@ -98,6 +100,7 @@ export function teamStats(games: ScoreBaseGame[]) {
   const rows = new Map<string, { team: string; games: number; wins: number; losses: number; draws: number; runs: number; allowed: number; hits: number; hr: number; pa: PlateAppearance[] }>();
   for (const game of games) {
     const score = scoreFor(game);
+    const plateAppearances = Array.isArray(game.plateAppearances) ? game.plateAppearances : [];
     for (const [team, runs, allowed, side] of [
       [game.homeTeamName, score.home, score.away, "BOTTOM"],
       [game.awayTeamName, score.away, score.home, "TOP"],
@@ -111,7 +114,7 @@ export function teamStats(games: ScoreBaseGame[]) {
       row.draws += result === "draw" ? 1 : 0;
       row.runs += runs;
       row.allowed += allowed;
-      const teamPlateAppearances = game.plateAppearances.filter((pa) => pa.topBottom === side);
+      const teamPlateAppearances = plateAppearances.filter((pa) => pa.topBottom === side);
       row.hits += teamPlateAppearances.filter((pa) => hitResults.has(pa.result)).length;
       row.hr += teamPlateAppearances.filter((pa) => isResult(pa, "HOME_RUN", "本塁打")).length;
       row.pa.push(...teamPlateAppearances);

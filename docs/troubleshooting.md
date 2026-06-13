@@ -186,3 +186,6 @@
 - 1件の壊れたDB行で一覧全体を落とさないため、`listGamesForUser` と `getGameByIdForUser` は安全な変換を使います。
 - 再発時は、直近で作成したsmoke test用Gameの `LineupEntry`、`InningScore`、`PlateAppearance`、`PitchEvent` をSupabase Table Editorで確認し、必須値がnullや想定外文字列になっていないか確認します。
 - 破損データを削除する前に、Vercel Productionがv0.7.9以降のcommitへ更新済みか確認してください。
+- v0.7.10以降、現在ユーザー取得やDB一覧クエリ全体が失敗した場合も `/games` はlocalStorageデータで表示し、DB-load警告を出します。
+- `/games/[id]`、`/games/[id]/scorebook`、`/games/[id]/export` も現在ユーザー取得失敗をcatchし、DB取得できない場合はlocalStorage fallbackへ移ります。
+- invalid Date、配列欠損、想定外mode/status、未設定チーム名はUI側でも安全な既定表示に寄せます。

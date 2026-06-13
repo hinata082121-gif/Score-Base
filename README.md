@@ -62,6 +62,14 @@ https://score-base.vercel.app
 - RunnerEvent専用保存は引き続き未実装です。走者状態は `PlateAppearance.baseStateBefore/baseStateAfter` で保持します。
 - schema変更なし。v0.7.9追加migrationはありません。
 
+## v0.7.10 Games Server Component Hardening
+
+- Productionで `/games` が再び `This page couldn't load` になる事象を確認しました。
+- DB保存済みGameの変換だけでなく、現在ユーザー取得やDB一覧クエリ全体が失敗しても `/games`、`/games/[id]`、`/games/[id]/scorebook`、`/games/[id]/export` が落ちないようにしました。
+- Game表示、出力、スコアブック表、成績集計で、欠損した配列、invalid Date、想定外mode/status、未設定チーム名を安全に扱うようにしました。
+- `npm audit fix` を通常範囲で実行し、`esbuild` のhigh vulnerabilityを解消しました。残り5件のmoderateは `--force` が必要なため未適用です。
+- schema変更なし。v0.7.10追加migrationはありません。
+
 ## v0.2 詳細スコアブック強化
 
 - 詳細スコアブック入力画面の固定サマリー

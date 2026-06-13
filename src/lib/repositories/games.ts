@@ -12,7 +12,7 @@ function text(value: unknown) {
 }
 
 function dateText(value: unknown) {
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? "" : value.toISOString().slice(0, 10);
   return text(value).slice(0, 10);
 }
 
@@ -52,8 +52,13 @@ function topBottom(value: unknown): "TOP" | "BOTTOM" {
 }
 
 function timeText(value: unknown) {
-  if (value instanceof Date) return value.toISOString().slice(11, 16);
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? "" : value.toISOString().slice(11, 16);
   return text(value).slice(0, 5);
+}
+
+function dateTimeText(value: unknown, fallback: string) {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? fallback : value.toISOString();
+  return text(value) || fallback;
 }
 
 export function dbGameToScoreBaseGame(game: DbGame): ScoreBaseGame {
@@ -145,8 +150,8 @@ export function dbGameToScoreBaseGame(game: DbGame): ScoreBaseGame {
       createdAt: pa.createdAt instanceof Date ? pa.createdAt.toISOString() : now,
     })),
     runnerState: { first: "", second: "", third: "" },
-    createdAt: game.createdAt instanceof Date ? game.createdAt.toISOString() : now,
-    updatedAt: game.updatedAt instanceof Date ? game.updatedAt.toISOString() : now,
+    createdAt: dateTimeText(game.createdAt, now),
+    updatedAt: dateTimeText(game.updatedAt, now),
   };
 }
 
@@ -194,8 +199,8 @@ function safeDbGameToScoreBaseGame(game: DbGame): ScoreBaseGame {
       inningScores: defaultInnings(),
       plateAppearances: [],
       runnerState: { first: "", second: "", third: "" },
-      createdAt: game.createdAt instanceof Date ? game.createdAt.toISOString() : now,
-      updatedAt: game.updatedAt instanceof Date ? game.updatedAt.toISOString() : now,
+      createdAt: dateTimeText(game.createdAt, now),
+      updatedAt: dateTimeText(game.updatedAt, now),
     };
   }
 }

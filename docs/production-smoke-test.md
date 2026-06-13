@@ -698,3 +698,44 @@ Verification status:
 Known remaining gap:
 
 - Dedicated `RunnerEvent` save is still not implemented. Runner state remains represented by `PlateAppearance.baseStateBefore` and `PlateAppearance.baseStateAfter`.
+
+## v0.7.10 Production Games Route Hardening
+
+Date: 2026-06-13
+
+Baseline:
+
+- Local latest commit before this pass: `b660446 fix: harden db scorebook smoke flow`.
+- `origin/main` pointed to `b660446e568acacfbe6473bfe4a035b4d84f5be2`.
+- Vercel connector did not expose a personal project/team in this workspace, and `.vercel/project.json` is not present, so the exact Vercel Production deployment commit still needs Dashboard confirmation.
+- Public pages checked: `/`, `/settings/deployment`, `/settings/release-checklist`, `/games`, `/players`, `/teams`.
+- `/settings/deployment` rendered and showed configured DB/Auth environment, Prisma connection success text, required table success text, and no visible Auth URL mismatch.
+
+Production issue reproduced:
+
+- `/games` again reproduced `This page couldn't load` with digest text `ERROR 3643582582`.
+- Existing DB game routes `/games/[id]`, `/games/[id]/scorebook`, and `/games/[id]/export` rendered in a separate pass, but the browser console kept reporting the generic Server Components render error.
+- Because runtime logs were not accessible from this workspace, the exact production stack trace was not available. The likely failing scope is before client rendering: current-user upsert/session resolution or the DB games list query as a whole, not only per-row `Game` conversion.
+
+Fix implemented:
+
+- `/games` now catches current-user resolution failures and DB list-query failures, then renders the page with localStorage data instead of throwing a Server Components error.
+- `/games/[id]`, `/games/[id]/scorebook`, and `/games/[id]/export` now also catch current-user resolution failures before attempting DB reads.
+- DB Game conversion now handles invalid `Date` objects safely in `gameDate`, `startTime`, `endTime`, `createdAt`, and `updatedAt`.
+- Game list/detail/export/scorebook display and stat aggregation now tolerate missing arrays, unknown mode/status labels, and missing team names.
+- The UI shows a DB-load warning on `/games` if DB games cannot be loaded, without exposing Prisma or secret details.
+
+Production verification status:
+
+- Full DB SCOREBOOK live input completion, PlateAppearance/PitchEvent persistence, reload retention, logout/relogin retention, Supabase Table Editor row verification, ExportSnapshot increment, and User B role sweep were not completed before this fix because `/games` was still able to enter the Server Components error state.
+- Supabase Table Editor was not accessible from this workspace; verify rows manually without recording secrets or test credentials.
+- RunnerEvent dedicated save remains unimplemented. Runner state is still represented by `PlateAppearance.baseStateBefore` and `PlateAppearance.baseStateAfter`.
+
+Local command results after the fix:
+
+- `npm run build`: passed.
+- `npm run lint`: passed.
+- `npx prisma validate`: passed.
+- `npm audit fix`: ran without `--force` and removed the high `esbuild` advisory.
+- `npm audit`: 5 moderate findings remain; both remaining fix paths require `npm audit fix --force`, which is intentionally not applied.
+- `npx prisma migrate status`: not run because local `DATABASE_URL` is missing in this workspace.

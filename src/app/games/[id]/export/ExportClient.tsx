@@ -40,9 +40,11 @@ export function ExportClient({ id, initialGame, initialGames = [], initialSnapsh
   if (!game) return <PageShell title="出力画面"><div className="rounded-md bg-white p-6">記録が見つかりません。</div></PageShell>;
 
   const score = scoreFor(game);
+  const inningScores = Array.isArray(game.inningScores) ? game.inningScores : [];
+  const plateAppearances = Array.isArray(game.plateAppearances) ? game.plateAppearances : [];
   const players = playerStats(games).slice(0, 6);
   const teams = teamStats(games).slice(0, 6);
-  const summary = { gameTitle: `${game.awayTeamName} vs ${game.homeTeamName}`, gameDate: game.gameDate, plateAppearances: game.plateAppearances.length, innings: game.inningScores.length };
+  const summary = { gameTitle: `${game.awayTeamName || "未設定チーム"} vs ${game.homeTeamName || "未設定チーム"}`, gameDate: game.gameDate, plateAppearances: plateAppearances.length, innings: inningScores.length };
 
   async function recordExport(type: "CSV" | "PNG" | "SHARE_TEXT" | "SCOREBOOK_EXPORT", fileName: string, style = "SIMPLE") {
     if (!dbEnabled || !game) return;
@@ -76,8 +78,8 @@ export function ExportClient({ id, initialGame, initialGames = [], initialSnapsh
           <SaveImageButton targetId="watch-card" filename="score-base-watch-card.png" onSaved={() => recordExport("PNG", "score-base-watch-card.png", "SIMPLE")} />
           <div id="watch-card" className={cardClass()}>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Score Base</p>
-            <h2 className="mt-2 text-3xl font-black text-stone-950">{game.awayTeamName} vs {game.homeTeamName}</h2>
-            <p className="mt-1 text-base font-bold text-stone-600">{game.gameDate} / {game.venue} / {game.competition}</p>
+            <h2 className="mt-2 text-3xl font-black text-stone-950">{game.awayTeamName || "未設定チーム"} vs {game.homeTeamName || "未設定チーム"}</h2>
+            <p className="mt-1 text-base font-bold text-stone-600">{game.gameDate || "日付未設定"} / {game.venue || "球場未入力"} / {game.competition || "-"}</p>
             <div className="mt-5 grid grid-cols-3 gap-3">
               <div className="rounded-md bg-stone-100 p-4"><p className="text-xs font-bold text-stone-500">スコア</p><p className="text-3xl font-black">{score.away}-{score.home}</p></div>
               <div className="rounded-md bg-emerald-50 p-4"><p className="text-xs font-bold text-stone-500">応援</p><p className="text-xl font-black">{game.favoriteTeamName || "-"}</p></div>
@@ -92,10 +94,10 @@ export function ExportClient({ id, initialGame, initialGames = [], initialSnapsh
           <div id="simple-score-card" className={cardClass()}>
             <h2 className="text-2xl font-black text-stone-950">簡易スコアカード</h2>
             <table className="mt-4 w-full text-sm">
-              <thead><tr><th className="p-2 text-left">TEAM</th>{game.inningScores.map((inning) => <th key={inning.inning} className="p-2">{inning.inning}</th>)}<th className="p-2">R</th></tr></thead>
+              <thead><tr><th className="p-2 text-left">TEAM</th>{inningScores.map((inning) => <th key={inning.inning} className="p-2">{inning.inning}</th>)}<th className="p-2">R</th></tr></thead>
               <tbody>
-                <tr><th className="p-2 text-left">{game.awayTeamName}</th>{game.inningScores.map((inning) => <td key={inning.inning} className="p-2 text-center">{inning.top || 0}</td>)}<td className="p-2 text-center font-black">{score.away}</td></tr>
-                <tr><th className="p-2 text-left">{game.homeTeamName}</th>{game.inningScores.map((inning) => <td key={inning.inning} className="p-2 text-center">{inning.bottom || 0}</td>)}<td className="p-2 text-center font-black">{score.home}</td></tr>
+                <tr><th className="p-2 text-left">{game.awayTeamName || "未設定チーム"}</th>{inningScores.map((inning) => <td key={inning.inning} className="p-2 text-center">{inning.top || 0}</td>)}<td className="p-2 text-center font-black">{score.away}</td></tr>
+                <tr><th className="p-2 text-left">{game.homeTeamName || "未設定チーム"}</th>{inningScores.map((inning) => <td key={inning.inning} className="p-2 text-center">{inning.bottom || 0}</td>)}<td className="p-2 text-center font-black">{score.home}</td></tr>
               </tbody>
             </table>
             <p className="mt-4 text-sm text-stone-700">勝利投手 {game.winningPitcher || "-"} / 敗戦投手 {game.losingPitcher || "-"} / セーブ {game.savePitcher || "-"}</p>

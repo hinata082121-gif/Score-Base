@@ -92,3 +92,10 @@ Server Actions must enforce these rules. UI button visibility is only a convenie
 - Two-user Production role checks were not completed before the hardening patch because `/games` reproduced a Server Components render error against incomplete smoke data.
 - After the fixed deploy is live, repeat the User B sweep: VIEWER can view only, SCORER can input scorebook but cannot delete games, EDITOR can edit team/player data but cannot manage members, and ADMIN can manage invitations/members and delete team games.
 - Confirm role behavior with real Server Action results and Supabase row changes, not only button visibility.
+
+## v0.7.10 Role Smoke Status
+
+- User B role smoke was not completed in this pass because `/games` still reproduced a Server Components error before the v0.7.10 route hardening fix.
+- After the v0.7.10 deploy is confirmed, resume from a stable `/games` list and run the VIEWER / SCORER / EDITOR / ADMIN sweep.
+- Keep using Server Action results and Supabase row changes as the authoritative check. Do not rely only on whether buttons are visible.
+- The last OWNER downgrade/removal guard remains required for every role smoke pass.
