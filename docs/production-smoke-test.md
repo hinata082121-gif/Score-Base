@@ -727,7 +727,11 @@ Fix implemented:
 
 Production verification status:
 
-- Full DB SCOREBOOK live input completion, PlateAppearance/PitchEvent persistence, reload retention, logout/relogin retention, Supabase Table Editor row verification, ExportSnapshot increment, and User B role sweep were not completed before this fix because `/games` was still able to enter the Server Components error state.
+- After push, `/games` rendered the game list again and no longer showed `This page couldn't load`.
+- After push, an existing DB game detail route rendered with its scoreboard and record-management section.
+- After push, `/games/[id]/scorebook` and `/games/[id]/export` reached their client loading shells instead of the framework error page.
+- The browser console still showed the generic Server Components render error message during these checks, so Vercel Runtime Logs should be inspected from the Dashboard to confirm whether any server-side stack remains after the v0.7.10 deploy.
+- Full DB SCOREBOOK live input completion, PlateAppearance/PitchEvent persistence, reload retention, logout/relogin retention, Supabase Table Editor row verification, ExportSnapshot increment, and User B role sweep were not completed in this workspace because the stable post-deploy flow still requires authenticated production test-account operation and/or Supabase console access.
 - Supabase Table Editor was not accessible from this workspace; verify rows manually without recording secrets or test credentials.
 - RunnerEvent dedicated save remains unimplemented. Runner state is still represented by `PlateAppearance.baseStateBefore` and `PlateAppearance.baseStateAfter`.
 
