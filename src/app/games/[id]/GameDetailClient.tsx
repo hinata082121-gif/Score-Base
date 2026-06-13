@@ -22,7 +22,7 @@ function labelStatus(status: string) {
   return statusLabels[status as keyof typeof statusLabels] ?? "状態未設定";
 }
 
-export function GameDetailClient({ id, initialGame, dbEnabled = false }: { id: string; initialGame?: ScoreBaseGame | null; dbEnabled?: boolean }) {
+export function GameDetailClient({ id, initialGame, dbEnabled = false, dbAccessFailed = false }: { id: string; initialGame?: ScoreBaseGame | null; dbEnabled?: boolean; dbAccessFailed?: boolean }) {
   const router = useRouter();
   const [game, setGame] = useState<ScoreBaseGame | null>(initialGame ?? null);
   const [message, setMessage] = useState("");
@@ -34,7 +34,7 @@ export function GameDetailClient({ id, initialGame, dbEnabled = false }: { id: s
   }, [id, initialGame]);
 
   if (!game) {
-    return <PageShell title="記録が見つかりません"><div className="rounded-md bg-white p-6 text-sm font-bold text-stone-600">ローカル保存に該当する記録がありません。</div></PageShell>;
+    return <PageShell title="記録が見つかりません"><div className="rounded-md bg-white p-6 text-sm font-bold text-stone-600">{dbAccessFailed ? "DB保存済み記録を確認できませんでした。時間を置いて再読み込みしてください。" : "端末内保存に該当する記録がありません。"}</div></PageShell>;
   }
 
   const score = scoreFor(game);
@@ -89,6 +89,7 @@ export function GameDetailClient({ id, initialGame, dbEnabled = false }: { id: s
       <div className="space-y-4">
         <section className="grid gap-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-4">
           {message ? <p className="rounded-md bg-red-50 p-3 text-sm font-bold text-red-700 sm:col-span-4">{message}</p> : null}
+          {dbAccessFailed ? <p className="rounded-md bg-amber-50 p-3 text-sm font-bold text-amber-800 sm:col-span-4">DB保存済み記録を確認できませんでした。表示中の内容は端末内データの可能性があります。</p> : null}
           <div className="rounded-md bg-emerald-50 p-3 text-sm font-bold text-emerald-900 sm:col-span-4">{dbEnabled ? "DB保存済み" : "ローカル保存"}</div>
           <div><p className="text-xs font-bold text-stone-500">スコア</p><p className="text-2xl font-black text-stone-950">{score.away}-{score.home}</p></div>
           <div><p className="text-xs font-bold text-stone-500">試合状態</p><p className="font-black text-stone-950">{labelStatus(game.status)}</p></div>

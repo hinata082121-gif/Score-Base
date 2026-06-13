@@ -70,6 +70,15 @@ https://score-base.vercel.app
 - `npm audit fix` を通常範囲で実行し、`esbuild` のhigh vulnerabilityを解消しました。残り5件のmoderateは `--force` が必要なため未適用です。
 - schema変更なし。v0.7.10追加migrationはありません。
 
+## v0.7.11 Runtime Investigation Support
+
+- Vercel Runtime Logsへのアクセスがない環境でも次回調査を進められるよう、`docs/runtime-log-investigation.md` に安全なログ確認手順を追加しました。
+- `/games` は未ログイン、認証状態確認失敗、DB取得失敗、DB 0件を区別して表示します。
+- `/games/[id]`、`/games/[id]/scorebook`、`/games/[id]/export` はDBアクセス失敗時に端末内データとの混同を避ける警告を表示します。
+- `app/games/error.tsx` と `app/games/[id]/error.tsx` を追加し、digest、再試行、一覧/ホーム導線を出しつつ、stack traceやPrisma生エラーは表示しないようにしました。
+- cookies/current userを読むgames系routeを `dynamic = "force-dynamic"` にし、リクエスト依存の認証処理を静的page data収集時に評価しないようにしました。
+- schema変更なし。v0.7.11追加migrationはありません。
+
 ## v0.2 詳細スコアブック強化
 
 - 詳細スコアブック入力画面の固定サマリー

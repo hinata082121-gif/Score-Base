@@ -743,3 +743,46 @@ Local command results after the fix:
 - `npm audit fix`: ran without `--force` and removed the high `esbuild` advisory.
 - `npm audit`: 5 moderate findings remain; both remaining fix paths require `npm audit fix --force`, which is intentionally not applied.
 - `npx prisma migrate status`: not run because local `DATABASE_URL` is missing in this workspace.
+
+## v0.7.11 Runtime Investigation Support
+
+Date: 2026-06-13
+
+Access status:
+
+- Runtime Logs could not be retrieved from this workspace.
+- Vercel connector returned no teams/projects.
+- `.vercel/project.json` is not present.
+- The browser reached the Vercel login page, so Dashboard access requires the user’s authenticated Vercel session.
+- Production deployment commit must be confirmed manually in Vercel Dashboard. Do not infer it from public HTML.
+
+Implementation changes:
+
+- `/games` now separates unauthenticated, auth-load-failed, DB-load-failed, and normal zero-record states.
+- DB-load failure is no longer presented as a normal empty DB result. The UI warns that端末内データ is only a supplemental display.
+- `/games/[id]`, `/games/[id]/scorebook`, and `/games/[id]/export` surface DB-access failure warnings instead of silently falling back to local data.
+- Safe server logs were added with route, gameId where applicable, and error name only. They do not include email, cookies, session tokens, DB URLs, or memo text.
+- Added route error boundaries for `/games` and `/games/[id]` that show retry/navigation actions and digest only.
+- Added `dynamic = "force-dynamic"` to the games routes that read cookies/current user state. Before this change, local production build emitted a safe auth-resolution warning while collecting page data for `/games`; after the change, the warning disappeared.
+- Added `docs/runtime-log-investigation.md` with exact Dashboard filters and safe fields to record.
+
+Root-cause classification from local evidence:
+
+- Likely category: A. Auth/session取得 and D. Server route rendering mode.
+- Evidence available locally: the production build executed `/games` during page data collection and hit current-user resolution without a request cookie context. Explicit dynamic rendering removed that build-time auth warning.
+- Runtime Logs are still required to confirm whether the same condition matches the Production generic Server Components render error and to capture request ID / digest / stack.
+
+Still requiring authenticated Production access:
+
+- Runtime Logs request ID, digest, stack trace, deployment association, and root-cause file/line.
+- DB SCOREBOOK live input completion.
+- PlateAppearance / PitchEvent / InningScore persistence after reload and logout/relogin.
+- CSV / PNG / share and ExportSnapshot verification.
+- Supabase Table Editor verification.
+- User B VIEWER / SCORER / EDITOR / ADMIN smoke test.
+
+RunnerEvent status:
+
+- Dedicated `RunnerEvent` persistence remains unimplemented.
+- Current runner state is stored on `PlateAppearance.baseStateBefore` and `PlateAppearance.baseStateAfter`.
+- Future RunnerEvent design should cover stolen base, caught stealing, advancement, run scored, pickoff, wild pitch, passed ball, balk, and interference events.

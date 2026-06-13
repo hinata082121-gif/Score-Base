@@ -189,3 +189,6 @@
 - v0.7.10以降、現在ユーザー取得やDB一覧クエリ全体が失敗した場合も `/games` はlocalStorageデータで表示し、DB-load警告を出します。
 - `/games/[id]`、`/games/[id]/scorebook`、`/games/[id]/export` も現在ユーザー取得失敗をcatchし、DB取得できない場合はlocalStorage fallbackへ移ります。
 - invalid Date、配列欠損、想定外mode/status、未設定チーム名はUI側でも安全な既定表示に寄せます。
+- v0.7.11以降、未ログイン、認証確認失敗、DB取得失敗、DB 0件を区別します。DB取得失敗を正常な0件として扱わないでください。
+- Runtime Logs調査では `docs/runtime-log-investigation.md` のフィルターを使い、Request ID、digest、route、秘密値を除いたstack概要だけを記録します。
+- error boundaryにdigestが出た場合でも、stack trace、Prisma message、DB接続情報は公開UIへ出しません。

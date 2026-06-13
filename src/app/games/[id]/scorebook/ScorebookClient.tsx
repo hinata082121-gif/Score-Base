@@ -7,7 +7,7 @@ import { ScorebookTable } from "@/components/ScorebookTable";
 import { loadGame, loadSettings } from "@/lib/storage";
 import type { ScoreBaseGame, ScorebookStyle } from "@/lib/types";
 
-export function ScorebookClient({ id, initialGame, dbEnabled = false }: { id: string; initialGame?: ScoreBaseGame | null; dbEnabled?: boolean }) {
+export function ScorebookClient({ id, initialGame, dbEnabled = false, dbAccessFailed = false }: { id: string; initialGame?: ScoreBaseGame | null; dbEnabled?: boolean; dbAccessFailed?: boolean }) {
   const [game, setGame] = useState<ScoreBaseGame | null>(initialGame ?? null);
   const [style, setStyle] = useState<ScorebookStyle>("WASEDA");
   const [ready, setReady] = useState(false);
@@ -19,10 +19,11 @@ export function ScorebookClient({ id, initialGame, dbEnabled = false }: { id: st
   }, [id, initialGame]);
 
   if (!ready) return <PageShell title="スコアブック"><div className="rounded-md bg-white p-6">読み込み中です。</div></PageShell>;
-  if (!game) return <PageShell title="スコアブック"><div className="rounded-md bg-white p-6">記録が見つかりません。</div></PageShell>;
+  if (!game) return <PageShell title="スコアブック"><div className="rounded-md bg-white p-6">{dbAccessFailed ? "DB保存済みスコアブックを確認できませんでした。時間を置いて再読み込みしてください。" : "記録が見つかりません。"}</div></PageShell>;
   if (game.mode === "SCOREBOOK") {
     return (
       <PageShell title="スコアブック入力" lead="試合詳細確認、スタメン確認、試合開始を経て、スマホ全画面に近い入力UIで記録します。">
+        {dbAccessFailed ? <div className="mb-4 rounded-md bg-amber-50 p-3 text-sm font-bold text-amber-800">DB保存済みスコアブックを確認できませんでした。表示中の内容は端末内データの可能性があります。</div> : null}
         <GameForm mode="SCOREBOOK" editId={id} initialGame={game} dbEnabled={dbEnabled} />
       </PageShell>
     );
@@ -32,6 +33,7 @@ export function ScorebookClient({ id, initialGame, dbEnabled = false }: { id: st
     <PageShell title="スコアブック表示" lead="内部データは共通のまま、表示テンプレートだけを切り替えます。">
       <div className="space-y-4">
         <div className="rounded-md border border-stone-200 bg-white p-3 shadow-sm">
+          {dbAccessFailed ? <p className="mb-2 rounded-md bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">DB保存済みスコアブックを確認できませんでした。表示中の内容は端末内データの可能性があります。</p> : null}
           <p className="mb-2 rounded-md bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-900">{dbEnabled ? "DB保存済みスコアブック" : "ローカル保存スコアブック"}</p>
           <div className="inline-flex rounded-md border border-stone-300 bg-white p-1">
             <button type="button" onClick={() => setStyle("WASEDA")} className={`rounded px-4 py-2 text-sm font-bold ${style === "WASEDA" ? "bg-emerald-700 text-white" : "text-stone-700"}`}>早稲田式</button>

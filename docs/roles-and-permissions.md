@@ -99,3 +99,10 @@ Server Actions must enforce these rules. UI button visibility is only a convenie
 - After the v0.7.10 deploy is confirmed, resume from a stable `/games` list and run the VIEWER / SCORER / EDITOR / ADMIN sweep.
 - Keep using Server Action results and Supabase row changes as the authoritative check. Do not rely only on whether buttons are visible.
 - The last OWNER downgrade/removal guard remains required for every role smoke pass.
+
+## v0.7.11 Role Smoke Status
+
+- User B role smoke still requires two authenticated Production sessions and was not executed from this workspace.
+- Before the role sweep, confirm Vercel Runtime Logs show no games-route Server Components errors for the latest Production deployment.
+- Use the VIEWER / SCORER / EDITOR / ADMIN checklist in this document and verify direct URL access plus Server Action rejection, not only UI button visibility.
+- Do not record User A / User B email addresses, passwords, invite codes, cookies, or session tokens in docs.

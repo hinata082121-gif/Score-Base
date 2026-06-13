@@ -24,7 +24,7 @@ type ExportSnapshotSummary = {
   dataSummary: string;
 };
 
-export function ExportClient({ id, initialGame, initialGames = [], initialSnapshots = [], dbEnabled = false }: { id: string; initialGame?: ScoreBaseGame | null; initialGames?: ScoreBaseGame[]; initialSnapshots?: ExportSnapshotSummary[]; dbEnabled?: boolean }) {
+export function ExportClient({ id, initialGame, initialGames = [], initialSnapshots = [], dbEnabled = false, dbAccessFailed = false }: { id: string; initialGame?: ScoreBaseGame | null; initialGames?: ScoreBaseGame[]; initialSnapshots?: ExportSnapshotSummary[]; dbEnabled?: boolean; dbAccessFailed?: boolean }) {
   const [game, setGame] = useState<ScoreBaseGame | null>(initialGame ?? null);
   const [games, setGames] = useState<ScoreBaseGame[]>(initialGames);
   const [snapshots, setSnapshots] = useState(initialSnapshots);
@@ -37,7 +37,7 @@ export function ExportClient({ id, initialGame, initialGames = [], initialSnapsh
   }, [id, initialGame, initialGames]);
 
   if (!ready) return <PageShell title="出力画面"><div className="rounded-md bg-white p-6">読み込み中です。</div></PageShell>;
-  if (!game) return <PageShell title="出力画面"><div className="rounded-md bg-white p-6">記録が見つかりません。</div></PageShell>;
+  if (!game) return <PageShell title="出力画面"><div className="rounded-md bg-white p-6">{dbAccessFailed ? "DB保存済み記録を確認できませんでした。時間を置いて再読み込みしてください。" : "記録が見つかりません。"}</div></PageShell>;
 
   const score = scoreFor(game);
   const inningScores = Array.isArray(game.inningScores) ? game.inningScores : [];
@@ -59,6 +59,7 @@ export function ExportClient({ id, initialGame, initialGames = [], initialSnapsh
     <PageShell title="出力画面" lead="各カードは固定幅で余白を確保し、PNGとして保存できます。">
       <div className="space-y-8">
         <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900">{dbEnabled ? "DB保存済みデータから出力しています。" : "ローカル保存データから出力しています。"}</p>
+        {dbAccessFailed ? <p className="rounded-md bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">DB保存済み記録を確認できませんでした。表示中の内容は端末内データの可能性があります。</p> : null}
         {dbEnabled ? (
           <section className="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
             <h2 className="text-lg font-black text-stone-950">この試合の最近の出力履歴</h2>
