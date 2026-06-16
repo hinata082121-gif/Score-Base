@@ -792,3 +792,26 @@ RunnerEvent status:
 - Dedicated `RunnerEvent` persistence remains unimplemented.
 - Current runner state is stored on `PlateAppearance.baseStateBefore` and `PlateAppearance.baseStateAfter`.
 - Future RunnerEvent design should cover stolen base, caught stealing, advancement, run scored, pickoff, wild pitch, passed ball, balk, and interference events.
+
+## v0.7.12 Mobile Game Entry Flow
+
+Date: 2026-06-16
+
+Implementation to verify after deploy:
+
+- `/games/new/watch` starts with 試合情報登録 and proceeds to 試合結果入力.
+- `/games/new/simple` starts with 試合情報登録 and proceeds to 試合結果入力.
+- `/games/new/scorebook` starts with 試合情報登録, then 情報確認, ホームスタメン, ビジタースタメン, スタメン最終確認, 試合開始, スコアブック入力, 試合結果入力.
+- `/games` shows an input status badge and a resume action for partially entered records.
+- Detailed scorebook lineup input shows a defensive field layout, lineup rows, and bench list for one team at a time.
+- Result entry records final score, outcome, game status, reason memo, end time, standout player, MVP, and memo.
+- iPhone SE width should not show page-level horizontal overflow on lineup or result steps.
+- Console should not show hydration error #418 or new client warnings.
+- DB-backed save and localStorage guest save should both retain the current step data after reload.
+
+Manual production follow-up:
+
+- Complete one DB-backed detailed scorebook record through result entry and reload it.
+- Confirm PlateAppearance / PitchEvent rows still persist after live input.
+- Confirm RunnerEvent remains not dedicatedly saved; runner state is verified through PlateAppearance before/after fields.
+- Complete User B VIEWER / SCORER / EDITOR / ADMIN role sweep after the latest deploy.

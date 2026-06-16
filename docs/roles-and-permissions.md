@@ -106,3 +106,10 @@ Server Actions must enforce these rules. UI button visibility is only a convenie
 - Before the role sweep, confirm Vercel Runtime Logs show no games-route Server Components errors for the latest Production deployment.
 - Use the VIEWER / SCORER / EDITOR / ADMIN checklist in this document and verify direct URL access plus Server Action rejection, not only UI button visibility.
 - Do not record User A / User B email addresses, passwords, invite codes, cookies, or session tokens in docs.
+
+## v0.7.12 Game Entry Permissions
+
+- OWNER / ADMIN / EDITOR can edit game information, lineups, and result fields when the underlying Server Action permits the Game mutation.
+- SCORER can continue detailed scorebook input for team games and should be able to reach the live input and result entry flow.
+- VIEWER can view records but must not be able to save game info, lineups, live scorebook input, or result changes.
+- Starting a detailed scorebook game still acts as a lineup lock boundary. Destructive lineup edits after PlateAppearance rows exist remain rejected by repository logic.

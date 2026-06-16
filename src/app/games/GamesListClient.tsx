@@ -25,6 +25,35 @@ function labelDate(value: string) {
   return value && !Number.isNaN(new Date(value).getTime()) ? value : "日付未設定";
 }
 
+function hasResult(game: ScoreBaseGame) {
+  return Boolean(game.result || game.outcome || game.endTime || game.mvp || game.impressivePlayer);
+}
+
+function lineupCount(game: ScoreBaseGame, side: "HOME" | "AWAY") {
+  return game.players.filter((player) => player.teamSide === side && player.role !== "BENCH" && player.name).length;
+}
+
+function workflowStatus(game: ScoreBaseGame) {
+  if (game.mode !== "SCOREBOOK") return hasResult(game) ? "完了" : "試合結果待ち";
+  if (hasResult(game)) return "完了";
+  if (game.startTime || game.plateAppearances.length > 0) return "試合結果待ち";
+  if (lineupCount(game, "HOME") >= 9 && lineupCount(game, "AWAY") >= 9) return "スタメン確認待ち";
+  if (game.homeTeamName || game.awayTeamName || game.gameDate || game.venue) return "スタメン入力待ち";
+  return "試合情報のみ";
+}
+
+function resumeHref(game: ScoreBaseGame) {
+  return game.mode === "SCOREBOOK" ? `/games/${game.id}/scorebook` : `/games/${game.id}/edit`;
+}
+
+function resumeLabel(game: ScoreBaseGame) {
+  const status = workflowStatus(game);
+  if (status === "スタメン入力待ち" || status === "スタメン確認待ち") return "スタメン入力へ";
+  if (status === "試合結果待ち") return game.mode === "SCOREBOOK" && (game.startTime || game.plateAppearances.length > 0) ? "試合結果入力へ" : "試合結果へ";
+  if (status === "完了") return "記録を確認";
+  return "続きから入力";
+}
+
 function inPeriod(dateText: string, period: string, start: string, end: string) {
   const date = new Date(dateText);
   const today = new Date();
@@ -138,6 +167,7 @@ export function GamesListClient({
         {!ready ? <div className="rounded-md border border-dashed border-stone-300 bg-white p-8 text-center text-sm font-bold text-stone-500">観戦記録を読み込み中です。</div> : null}
         {filtered.map((game) => {
           const score = scoreFor(game);
+          const workflow = workflowStatus(game);
           return (
             <article key={game.id} className="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -146,8 +176,10 @@ export function GamesListClient({
                   <h2 className="mt-1 text-lg font-black text-stone-950">{game.awayTeamName || "未設定チーム"} vs {game.homeTeamName || "未設定チーム"}</h2>
                   <p className="text-sm text-stone-600">{game.venue || "球場未入力"} / {labelStatus(game.status)} / {score.away}-{score.home}</p>
                   <p className="mt-1 text-sm text-stone-600">応援: {game.favoriteTeamName || "-"} / 勝敗: {game.result || "-"}</p>
+                  <p className="mt-2 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-800">入力状況: {workflow}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Link className="rounded-md bg-amber-600 px-3 py-2 text-sm font-bold text-white" href={resumeHref(game)}>{resumeLabel(game)}</Link>
                   <Link className="rounded-md bg-emerald-700 px-3 py-2 text-sm font-bold text-white" href={`/games/${game.id}`}>詳細</Link>
                   <Link className="rounded-md bg-stone-100 px-3 py-2 text-sm font-bold text-stone-800" href={`/games/${game.id}/edit`}>編集</Link>
                   <button disabled={isPending} className="rounded-md bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800 disabled:opacity-50" onClick={() => duplicate(game.id)}>複製</button>
