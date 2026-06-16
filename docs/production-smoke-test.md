@@ -834,3 +834,70 @@ Production checks still required:
 - DB-backed watch/simple/scorebook save and edit.
 - `/games/[id]/edit` for DB records that previously triggered digest `3643582582`.
 - Vercel Runtime Logs for any new edit-route digest after deploy.
+
+## v0.7.14 Production Verification
+
+Date: 2026-06-16
+
+Baseline:
+
+- Local branch: `main`.
+- Local `HEAD`: `85466ce6c8cd51b90c691f07176c6113de248337`.
+- `origin/main`: `85466ce6c8cd51b90c691f07176c6113de248337`.
+- Production URL: `https://score-base.vercel.app`.
+
+Production deployment:
+
+- Exact Vercel Production deployment commit was not verified from this workspace.
+- `.vercel/project.json` is absent and the Vercel CLI token is invalid.
+- Public HTML was not used to infer the deployment commit.
+- Confirm manually in Vercel Dashboard that the latest Ready Production deployment on branch `main` uses `85466ce` or later.
+
+Public Production route sweep:
+
+- `/`: opened successfully; title was `Score Base | 野球観戦記録・スコアブック管理アプリ`.
+- `/games`: opened successfully and did not show a framework error page.
+- `/games/new/watch`: opened successfully and showed fixed weather options without weather `新規入力`.
+- `/games/new/simple`: opened successfully and showed the simple entry flow.
+- `/games/new/scorebook`: opened successfully and showed compact scorebook progress.
+- `/login`: opened successfully.
+- Browser console error/warn count during the public route sweep: 0.
+- Hydration error #418 was not observed.
+- `Maximum update depth exceeded` was not observed.
+- `digest:3643582582` was not observed in the public browser sweep.
+
+Mobile layout:
+
+- 320px-class checks for `/games` and `/games/new/scorebook` showed no page-level horizontal overflow.
+- The public scorebook page did not expose a complete DB-backed live-input state in this session, so full iPhone SE defensive marker interaction still requires authenticated manual confirmation.
+
+Authenticated DB-backed checks not executed from this workspace:
+
+- Watch-only required-only save.
+- Optional-empty save.
+- Venue candidate reuse with `SB_TEST_VENUE_V0714`.
+- Competition candidate reuse with `SB_TEST_COMPETITION_V0714`.
+- Final score clear/retype/blur behavior against DB persistence.
+- DB Game edit and reload.
+- Simple score-only save/restore.
+- Simple scoreboard save/restore.
+- Player record pitcher/homerun candidate persistence.
+- Detailed home/visitor candidate filter against real DB teams/players.
+- Full DB SCOREBOOK completion through LineupEntry, InningScore, PlateAppearance, and PitchEvent persistence.
+- Reload and logout/relogin retention.
+- User B role smoke.
+
+Reason:
+
+- The workspace did not have a confirmed authenticated Production test session, and Vercel Runtime Logs/Dashboard could not be accessed with the available local configuration. Secrets, cookies, tokens, DB URLs, and test account credentials were not requested or recorded.
+
+Local command results:
+
+- `npm run build`: passed.
+- `npm run lint`: passed.
+- `npx prisma validate`: passed.
+- `npm audit`: 5 moderate findings remain; all available fixes require `npm audit fix --force`, which is intentionally not applied.
+- `npx prisma migrate status`: not run because `DATABASE_URL` was not set in the shell and the local `.env` value was not classified or printed.
+- schema変更なし。
+- migration作成なし。
+- migration deploy不要。

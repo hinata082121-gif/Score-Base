@@ -98,3 +98,30 @@ Local evidence:
 - Before adding `force-dynamic`, local production build logged a safe auth-resolution warning while collecting page data for `/games`.
 - After adding `force-dynamic`, `npm run build` completed without that warning.
 - Runtime Logs remain necessary to confirm the exact Production request ID, digest, and stack.
+
+## v0.7.14 Production Log Status
+
+Date: 2026-06-16
+
+Workspace access status:
+
+- `.vercel/project.json` is not present.
+- The Vercel CLI reported an invalid token in this workspace.
+- Project ID and Team ID could not be determined safely, so Vercel Runtime Logs were not retrieved.
+- The exact Production deployment commit was not verified here. Confirm it in Vercel Dashboard and do not infer it from public HTML.
+
+Public browser check:
+
+- Routes opened: `/`, `/games`, `/games/new/watch`, `/games/new/simple`, `/games/new/scorebook`, `/login`.
+- Browser console error/warn entries captured during this pass: 0.
+- `digest:3643582582`, `Maximum update depth exceeded`, Server Components render error, and hydration #418 were not observed in the public browser sweep.
+
+Manual Runtime Log filters for this phase:
+
+- Environment: `production`
+- Host: `score-base.vercel.app`
+- Level: `Error` and `Fatal`
+- Include Server Action requests as well as GET requests when testing saves.
+- Routes: `/games/new/watch`, `/games/new/simple`, `/games/new/scorebook`, `/games/[id]/edit`, `/games`, `/games/[id]`, `/games/[id]/scorebook`, `/games/[id]/export`
+
+Record only route, timestamp, request ID, digest, deployment, error name, and secret-free stack file/function names.

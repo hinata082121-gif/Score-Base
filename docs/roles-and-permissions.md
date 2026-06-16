@@ -120,3 +120,15 @@ Server Actions must enforce these rules. UI button visibility is only a convenie
 - DB load failures on `/games/[id]/edit` are no longer treated as localStorage records. This avoids accidental edits against the wrong source.
 - SCORER can use scorebook input, but destructive lineup edits after existing PlateAppearance rows remain blocked.
 - VIEWER must not be able to save result or lineup changes even if direct URLs are opened.
+
+## v0.7.14 User B Smoke Status
+
+- User B role smoke was not executed from this workspace because it requires two authenticated Production sessions and deliberate DB mutations.
+- No User A/User B email address, password, invite code, cookie, token, or session value should be recorded in docs or reports.
+- Before the role sweep, confirm Vercel Production is deployed at `85466ce` or later and Runtime Logs show no Error/Fatal entries for the tested routes.
+- VIEWER: confirm view access only, direct edit/save/delete rejection, and no detailed scorebook input.
+- SCORER: confirm detailed scorebook input works for allowed team games, while delete and destructive team/player management are rejected.
+- EDITOR: confirm game/player create-edit flows work where intended, and member/invitation management remains rejected.
+- ADMIN: confirm game delete, invitation management, and member management work except last OWNER protections.
+- OWNER: confirm full team control, last OWNER removal/downgrade protection, and OWNER invitation rejection.
+- Treat Server Action results and DB rows as authoritative; UI button visibility alone is not sufficient.

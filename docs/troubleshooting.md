@@ -167,6 +167,14 @@
 - 端末内データは `game_` で始まるlocalStorage IDを明示的にlocalとして扱います。
 - DB取得失敗時は再試行UIを表示し、Prisma生エラーや秘密値は表示しません。
 
+## v0.7.14 Production verification is incomplete
+
+- Production deployment commit cannot be confirmed from public HTML. Check Vercel Dashboard > Score Base > Deployments and confirm the latest Ready Production deployment is branch `main` at `85466ce` or later.
+- If `.vercel/project.json` is absent or Vercel CLI authentication is invalid, Runtime Logs cannot be queried from the workspace. Use Dashboard Runtime Logs instead.
+- For authenticated DB-backed smoke tests, use real test accounts in the browser but do not paste credentials, cookies, tokens, or DB URLs into docs, logs, or chat.
+- If public routes render but DB saves are unverified, record them as unverified. Do not treat public route success as proof of DB persistence.
+- For `digest:3643582582`, `Maximum update depth exceeded`, Server Components render errors, or hydration #418, clear the browser console before reproducing and compare with fresh Runtime Logs entries.
+
 ## 試合開始後にスタメンを変更できない
 
 - v0.7.5以降、試合開始後のスタメン破壊的編集は制限します。

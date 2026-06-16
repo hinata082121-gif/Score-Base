@@ -104,6 +104,19 @@ https://score-base.vercel.app
 - `/games/[id]/edit` はDB取得失敗をlocalStorage扱いにせず、DBエラーとして再試行UIを表示します。
 - schema変更なし。v0.7.13追加migrationはありません。
 
+## v0.7.14 Production Verification Status
+
+Date: 2026-06-16
+
+- Local `HEAD` and `origin/main` are both `85466ce6c8cd51b90c691f07176c6113de248337`.
+- Public Production pages opened: `/`, `/games`, `/games/new/watch`, `/games/new/simple`, `/games/new/scorebook`, `/login`.
+- Public page titles and metadata still show `Score Base | 野球観戦記録・スコアブック管理アプリ`.
+- Browser console error/warn was 0 during the public route sweep, and hydration error #418 was not observed.
+- 320px-class checks did not show page-level horizontal overflow on `/games` or `/games/new/scorebook`.
+- Vercel CLI authentication in this workspace is invalid and `.vercel/project.json` is absent, so the exact Production deployment commit and Runtime Logs were not verified here.
+- Authenticated DB-backed save/edit/reload/logout-relogin, full DB SCOREBOOK completion, and User B role smoke were not executed from this workspace because they require an authenticated Production session and/or Vercel Dashboard access. Do not infer these results from public HTML.
+- schema変更なし。v0.7.14追加migrationはありません。
+
 ## v0.2 詳細スコアブック強化
 
 - 詳細スコアブック入力画面の固定サマリー
