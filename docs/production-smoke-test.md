@@ -815,3 +815,22 @@ Manual production follow-up:
 - Confirm PlateAppearance / PitchEvent rows still persist after live input.
 - Confirm RunnerEvent remains not dedicatedly saved; runner state is verified through PlateAppearance before/after fields.
 - Complete User B VIEWER / SCORER / EDITOR / ADMIN role sweep after the latest deploy.
+
+## v0.7.13 Game Entry Stabilization
+
+Date: 2026-06-16
+
+Local browser checks:
+
+- Watch-only localStorage flow saved required game info and reached result entry.
+- Final score field allowed clearing `0` to an empty string and then entering a new number.
+- Simple mode showed both score modes, player record section, pitcher fields, homerun field, and no page-level horizontal overflow at iPhone width.
+- Scorebook mode at 320px showed compact `3 / 8` progress, hidden full step list by default, field markers with zero overlap, and no horizontal overflow.
+- Weather select did not show `新規入力`.
+- A buffered development-console error from before the default-array fix remained in Browser logs; no newer timestamped recurrence was observed after the fix.
+
+Production checks still required:
+
+- DB-backed watch/simple/scorebook save and edit.
+- `/games/[id]/edit` for DB records that previously triggered digest `3643582582`.
+- Vercel Runtime Logs for any new edit-route digest after deploy.

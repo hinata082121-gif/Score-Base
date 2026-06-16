@@ -113,3 +113,10 @@ Server Actions must enforce these rules. UI button visibility is only a convenie
 - SCORER can continue detailed scorebook input for team games and should be able to reach the live input and result entry flow.
 - VIEWER can view records but must not be able to save game info, lineups, live scorebook input, or result changes.
 - Starting a detailed scorebook game still acts as a lineup lock boundary. Destructive lineup edits after PlateAppearance rows exist remain rejected by repository logic.
+
+## v0.7.13 Validation and Edit Notes
+
+- Required-field validation is a UX layer only. Server Actions and repositories remain the authority for DB-backed permissions.
+- DB load failures on `/games/[id]/edit` are no longer treated as localStorage records. This avoids accidental edits against the wrong source.
+- SCORER can use scorebook input, but destructive lineup edits after existing PlateAppearance rows remain blocked.
+- VIEWER must not be able to save result or lineup changes even if direct URLs are opened.

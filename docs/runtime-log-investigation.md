@@ -78,6 +78,16 @@ Do not record:
 v0.7.11 code hardening added:
 
 - `/games` separates unauthenticated, auth-load-failed, DB-load-failed, and normal empty states.
+
+## v0.7.13 Edit Route Focus
+
+If `/games/[id]/edit` shows digest `3643582582` or another digest after v0.7.13:
+
+- Filter Runtime Logs by Production, host `score-base.vercel.app`, level Error/Fatal, method GET, and path `/games/[id]/edit`.
+- Check whether the failing ID is a DB-backed Game ID or a localStorage-style `game_` ID.
+- Record only Request ID, digest, route, error name, deployment, timestamp, and secret-free stack file/function names.
+- Do not record cookies, session tokens, Authorization headers, DATABASE_URL, AUTH_SECRET, user email addresses, passwords, full request bodies, or memo text.
+- Confirm DB lookup failures are not being treated as localStorage edits. v0.7.13 should show a retry UI for DB retrieval failures.
 - Auth or DB lookup failures are logged with route, gameId where applicable, and error name only.
 - `/games`, `/games/[id]`, `/games/[id]/scorebook`, and `/games/[id]/export` avoid silently treating DB failures as a normal zero-record state.
 - `app/games/error.tsx` and `app/games/[id]/error.tsx` show retry and navigation actions plus a digest when Next.js provides one, without exposing stack traces or Prisma messages.

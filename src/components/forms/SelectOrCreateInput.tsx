@@ -21,8 +21,13 @@ export function SelectOrCreateInput({
   value,
   onChange,
   allowNone = false,
+  allowCreate = true,
   noneLabel = "なし",
+  emptyLabel = "未選択",
   required = false,
+  optional = false,
+  error,
+  disabled = false,
   placeholder = "新規入力",
 }: {
   label: string;
@@ -31,21 +36,34 @@ export function SelectOrCreateInput({
   value: SelectOrCreateValue;
   onChange: (value: SelectOrCreateValue) => void;
   allowNone?: boolean;
+  allowCreate?: boolean;
   noneLabel?: string;
+  emptyLabel?: string;
   required?: boolean;
+  optional?: boolean;
+  error?: string;
+  disabled?: boolean;
   placeholder?: string;
 }) {
   const hasOptions = options.length > 0;
-  const selectValue = value.mode === "existing" ? `existing:${value.id ?? ""}` : value.mode;
-  const showText = !hasOptions || value.mode === "new";
+  const selectValue = value.mode === "existing" ? `existing:${value.id ?? ""}` : !allowCreate && value.mode === "new" ? "none" : value.mode;
+  const showText = allowCreate && (!hasOptions || value.mode === "new");
+  const describedBy = error ? `${label}-error` : help ? `${label}-help` : undefined;
 
   return (
     <label className="space-y-1 text-sm font-bold text-stone-700">
-      <span>{label}{required ? " 必須" : ""}</span>
+      <span className="flex items-center gap-2">
+        <span>{label}</span>
+        {required ? <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-black text-red-700">必須</span> : null}
+        {optional ? <span className="rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-black text-stone-500">任意</span> : null}
+      </span>
       {hasOptions ? (
         <select
-          className={field}
+          className={`${field} ${error ? "border-red-400 bg-red-50" : ""}`}
           value={selectValue}
+          disabled={disabled}
+          aria-invalid={Boolean(error)}
+          aria-describedby={describedBy}
           onChange={(event) => {
             const next = event.target.value;
             if (next === "none") return onChange({ mode: "none", label: "" });
@@ -56,15 +74,16 @@ export function SelectOrCreateInput({
           }}
         >
           {allowNone ? <option value="none">{noneLabel}</option> : null}
-          {!allowNone && !required ? <option value="none">未選択</option> : null}
+          {!allowNone && (!required || optional) ? <option value="none">{emptyLabel}</option> : null}
           {options.map((option) => <option key={option.id} value={`existing:${option.id}`}>{option.label}{option.helper ? ` / ${option.helper}` : ""}</option>)}
-          <option value="new">新規入力</option>
+          {allowCreate ? <option value="new">新規入力</option> : null}
         </select>
       ) : null}
       {showText ? (
-        <input className={field} required={required && !allowNone} value={value.label} onChange={(event) => onChange({ mode: "new", label: event.target.value })} placeholder={placeholder} />
+        <input className={`${field} ${error ? "border-red-400 bg-red-50" : ""}`} disabled={disabled} required={required && !allowNone} aria-invalid={Boolean(error)} aria-describedby={describedBy} value={value.label} onChange={(event) => onChange({ mode: "new", label: event.target.value })} placeholder={placeholder} />
       ) : null}
-      {help ? <span className="block text-xs font-bold text-stone-500">{help}</span> : null}
+      {help ? <span id={`${label}-help`} className="block text-xs font-bold text-stone-500">{help}</span> : null}
+      {error ? <span id={`${label}-error`} className="block text-xs font-black text-red-700">{error}</span> : null}
     </label>
   );
 }

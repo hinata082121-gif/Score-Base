@@ -39,8 +39,14 @@ type PlateAppearanceDraft = Omit<PlateAppearance, "id" | "baseStateBefore" | "ba
 type UndoAction = "投球を取り消し" | "打席確定を取り消し";
 type FormStep = "details" | "detailsConfirm" | "lineupHome" | "lineupAway" | "lineupConfirm" | "readyToStart" | "liveInput" | "result";
 type PlateStep = "pitch" | "pitchDetail" | "batting" | "battingDetail" | "runner" | "confirm";
+type SimpleScoreMode = "TOTAL" | "BOARD";
+type ValidationErrors = { form?: string; fields: Record<string, string> };
 type TeamOption = SelectOrCreateOption & { homeGround?: string };
 type PlayerOption = SelectOrCreateOption & { teamId?: string; number?: string; position?: string };
+
+const emptyTeams: TeamOption[] = [];
+const emptyPlayers: PlayerOption[] = [];
+const emptyGames: ScoreBaseGame[] = [];
 
 const weatherOptions: SelectOrCreateOption[] = ["晴れ", "曇り", "雨", "小雨", "雪", "屋内", "その他"].map((label) => ({ id: label, label }));
 const pitchActionButtons: Array<{ value: PitchCall | "BATTER_ACTION" | "OTHER"; label: string; short: string; tone: string }> = [
@@ -62,15 +68,15 @@ const courseGrid = [
   "内角低め", "真ん中低め", "外角低め",
 ];
 const fieldPositions = [
-  { value: "P", label: "投", className: "left-[46%] top-[58%]" },
-  { value: "C", label: "捕", className: "left-[46%] top-[82%]" },
-  { value: "1B", label: "一", className: "left-[70%] top-[62%]" },
-  { value: "2B", label: "二", className: "left-[60%] top-[42%]" },
-  { value: "3B", label: "三", className: "left-[22%] top-[62%]" },
-  { value: "SS", label: "遊", className: "left-[32%] top-[42%]" },
-  { value: "LF", label: "左", className: "left-[18%] top-[20%]" },
+  { value: "P", label: "投", className: "left-[48%] top-[58%]" },
+  { value: "C", label: "捕", className: "left-[48%] top-[84%]" },
+  { value: "1B", label: "一", className: "left-[75%] top-[61%]" },
+  { value: "2B", label: "二", className: "left-[64%] top-[39%]" },
+  { value: "3B", label: "三", className: "left-[20%] top-[61%]" },
+  { value: "SS", label: "遊", className: "left-[31%] top-[39%]" },
+  { value: "LF", label: "左", className: "left-[16%] top-[18%]" },
   { value: "CF", label: "中", className: "left-[46%] top-[10%]" },
-  { value: "RF", label: "右", className: "left-[74%] top-[20%]" },
+  { value: "RF", label: "右", className: "left-[78%] top-[18%]" },
 ];
 
 function emptyGame(mode: GameMode): ScoreBaseGame {
@@ -125,6 +131,31 @@ function updateById<T extends { id: string }>(items: T[], id: string, patch: Par
   return items.map((item) => (item.id === id ? { ...item, ...patch } : item));
 }
 
+function requiredBadge(required?: boolean) {
+  return required
+    ? <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-black text-red-700">必須</span>
+    : <span className="rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-black text-stone-500">任意</span>;
+}
+
+function fieldLabel(text: string, required?: boolean) {
+  return <span className="flex items-center gap-2">{text}{requiredBadge(required)}</span>;
+}
+
+function fieldError(errors: ValidationErrors, key: string) {
+  return errors.fields[key] ? <span id={`${key}-error`} className="text-xs font-black text-red-700">{errors.fields[key]}</span> : null;
+}
+
+function validationSummary(errors: ValidationErrors) {
+  const messages = Object.values(errors.fields);
+  if (!errors.form && messages.length === 0) return null;
+  return (
+    <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800">
+      {errors.form ? <p className="font-black">{errors.form}</p> : null}
+      {messages.length ? <ul className="mt-1 list-disc space-y-1 pl-5">{messages.map((message) => <li key={message}>{message}</li>)}</ul> : null}
+    </div>
+  );
+}
+
 function runnerText(state: RunnerState) {
   return [state.first ? `一塁:${state.first}` : "", state.second ? `二塁:${state.second}` : "", state.third ? `三塁:${state.third}` : ""].filter(Boolean).join(" / ") || "走者なし";
 }
@@ -134,7 +165,18 @@ function scorebookSideLabel(topBottom: "TOP" | "BOTTOM") {
 }
 
 function uniqueOptions(values: string[]): SelectOrCreateOption[] {
-  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).slice(0, 30).map((label) => ({ id: label, label }));
+  const seen = new Set<string>();
+  return values
+    .map((value) => value.replace(/\u3000/g, " ").trim())
+    .filter(Boolean)
+    .filter((value) => {
+      const key = value.toLocaleLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 30)
+    .map((label) => ({ id: label, label }));
 }
 
 function teamValue(id: string | undefined, name: string, options: TeamOption[]): SelectOrCreateValue {
@@ -160,15 +202,132 @@ function initialFormStepFor(game: ScoreBaseGame | null | undefined, fallbackMode
   return "details";
 }
 
-export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams = [], dbPlayers = [], dbGames = [] }: { mode: GameMode; editId?: string; initialGame?: ScoreBaseGame | null; dbEnabled?: boolean; dbTeams?: TeamOption[]; dbPlayers?: PlayerOption[]; dbGames?: ScoreBaseGame[] }) {
+function normalizeGameForForm(game: ScoreBaseGame | null | undefined, fallbackMode: GameMode): ScoreBaseGame {
+  const base = emptyGame(game?.mode ?? fallbackMode);
+  return {
+    ...base,
+    ...game,
+    mode: game?.mode ?? fallbackMode,
+    homeTeamId: game?.homeTeamId ?? "",
+    awayTeamId: game?.awayTeamId ?? "",
+    homeTeamName: game?.homeTeamName ?? "",
+    awayTeamName: game?.awayTeamName ?? "",
+    gameDate: game?.gameDate ?? base.gameDate,
+    venue: game?.venue ?? "",
+    competition: game?.competition ?? "",
+    weather: game?.weather ?? "",
+    outcome: game?.outcome ?? "",
+    status: game?.status ?? "NORMAL",
+    startTime: game?.startTime ?? "",
+    endTime: game?.endTime ?? "",
+    impressivePlayer: game?.impressivePlayer ?? "",
+    mvp: game?.mvp ?? "",
+    pitcherHome: game?.pitcherHome ?? "",
+    pitcherAway: game?.pitcherAway ?? "",
+    winningPitcher: game?.winningPitcher ?? "",
+    losingPitcher: game?.losingPitcher ?? "",
+    savePitcher: game?.savePitcher ?? "",
+    homerunMemo: game?.homerunMemo ?? "",
+    players: Array.isArray(game?.players) ? game.players : base.players,
+    inningScores: Array.isArray(game?.inningScores) && game.inningScores.length ? game.inningScores : defaultInnings(),
+    plateAppearances: Array.isArray(game?.plateAppearances) ? game.plateAppearances : [],
+    runnerState: game?.runnerState ?? { first: "", second: "", third: "" },
+  };
+}
+
+function scoreFromInnings(game: ScoreBaseGame, side: "AWAY" | "HOME") {
+  return game.inningScores.reduce((sum, inning) => sum + (Number(side === "AWAY" ? inning.top : inning.bottom) || 0), 0);
+}
+
+function scoreDraftFromGame(game: ScoreBaseGame, side: "AWAY" | "HOME") {
+  return String(scoreFromInnings(game, side));
+}
+
+function sanitizeScoreDraft(value: string) {
+  const digits = value.replace(/[^\d]/g, "").slice(0, 3);
+  return digits.replace(/^0+(?=\d)/, "");
+}
+
+function gameWithTotalScore(source: ScoreBaseGame, awayDraft: string, homeDraft: string) {
+  const away = awayDraft === "" ? 0 : Number(awayDraft);
+  const home = homeDraft === "" ? 0 : Number(homeDraft);
+  const innings = source.inningScores.length ? source.inningScores : defaultInnings();
+  return {
+    ...source,
+    inningScores: innings.map((inning, index) => ({
+      ...inning,
+      top: index === 0 ? away : "" as const,
+      bottom: index === 0 ? home : "" as const,
+    })),
+  };
+}
+
+function inferSimpleScoreMode(game: ScoreBaseGame): SimpleScoreMode {
+  return game.inningScores.slice(1).some((inning) => inning.top !== "" || inning.bottom !== "") ? "BOARD" : "TOTAL";
+}
+
+function validateGameDetails(game: ScoreBaseGame): ValidationErrors {
+  const fields: Record<string, string> = {};
+  if (!game.gameDate) fields.gameDate = "試合日を入力してください。";
+  if (!game.homeTeamName.trim()) fields.homeTeamName = "ホームチームを入力してください。";
+  if (!game.awayTeamName.trim()) fields.awayTeamName = "ビジターチームを入力してください。";
+  if (game.homeTeamName.trim() && game.awayTeamName.trim() && game.homeTeamName.trim() === game.awayTeamName.trim()) {
+    fields.awayTeamName = "ホームとビジターには別のチームを指定してください。";
+  }
+  if (game.homeTeamId && game.awayTeamId && game.homeTeamId === game.awayTeamId) {
+    fields.awayTeamName = "同じ登録チームをホームとビジターに選べません。";
+  }
+  return { form: Object.keys(fields).length ? "試合情報の必須項目を確認してください。" : undefined, fields };
+}
+
+function validateLineup(game: ScoreBaseGame, side: "HOME" | "AWAY"): ValidationErrors {
+  const labelText = side === "HOME" ? "ホーム" : "ビジター";
+  const starters = game.players.filter((player) => player.teamSide === side && player.role !== "BENCH");
+  const fields: Record<string, string> = {};
+  for (let order = 1; order <= 9; order += 1) {
+    const player = starters.find((item) => item.battingOrder === order);
+    if (!player?.name.trim()) fields[`${side}-${order}-name`] = `${labelText}${order}番の選手名を入力してください。`;
+    if (!player?.position) fields[`${side}-${order}-position`] = `${labelText}${order}番の守備位置を入力してください。`;
+  }
+  const orders = starters.map((player) => player.battingOrder).filter(Boolean);
+  if (orders.some((order, index) => orders.indexOf(order) !== index)) fields[`${side}-orders`] = `${labelText}の打順が重複しています。`;
+  return { form: Object.keys(fields).length ? `${labelText}スタメンに不足があります。` : undefined, fields };
+}
+
+function validateLineupConfirmation(game: ScoreBaseGame): ValidationErrors {
+  const home = validateLineup(game, "HOME");
+  const away = validateLineup(game, "AWAY");
+  return { form: home.form || away.form ? "試合開始前にスタメンの不足を解消してください。" : undefined, fields: { ...home.fields, ...away.fields } };
+}
+
+function validateGameResult(game: ScoreBaseGame, awayDraft: string, homeDraft: string): ValidationErrors {
+  const fields: Record<string, string> = {};
+  if (awayDraft === "" || homeDraft === "") fields.score = "最終スコアを入力してください。空欄のまま保存する場合はフォーカスを外して0へ戻してください。";
+  if (!game.status) fields.status = "試合状態を選択してください。";
+  if (["CALLED_GAME", "SUSPENDED", "CANCELLED", "POSTPONED", "NO_GAME"].includes(game.status) && !game.statusReason.trim()) {
+    fields.statusReason = "コールド・中断・中止・延期・ノーゲームでは理由メモを入力してください。";
+  }
+  return { form: Object.keys(fields).length ? "試合結果の入力内容を確認してください。" : undefined, fields };
+}
+
+function validatePlateAppearance(draft: PlateAppearanceDraft): ValidationErrors {
+  return draft.result ? { fields: {} } : { form: "打席結果を選択してください。", fields: { plateResult: "打席結果が未選択です。" } };
+}
+
+export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams = emptyTeams, dbPlayers = emptyPlayers, dbGames = emptyGames }: { mode: GameMode; editId?: string; initialGame?: ScoreBaseGame | null; dbEnabled?: boolean; dbTeams?: TeamOption[]; dbPlayers?: PlayerOption[]; dbGames?: ScoreBaseGame[] }) {
   const router = useRouter();
-  const [game, setGame] = useState<ScoreBaseGame>(() => initialGame ?? emptyGame(mode));
-  const [formStep, setFormStep] = useState<FormStep>(() => initialFormStepFor(initialGame, mode));
+  const [game, setGame] = useState<ScoreBaseGame>(() => normalizeGameForForm(initialGame, mode));
+  const [formStep, setFormStep] = useState<FormStep>(() => initialFormStepFor(normalizeGameForForm(initialGame, mode), mode));
   const [plateStep, setPlateStep] = useState<PlateStep>("pitch");
   const [persistedGameId, setPersistedGameId] = useState(editId ?? initialGame?.id ?? "");
   const [teams, setTeams] = useState<TeamOption[]>(dbTeams);
   const [players, setPlayers] = useState<PlayerOption[]>(dbPlayers);
   const [gamesForCandidates, setGamesForCandidates] = useState<ScoreBaseGame[]>(dbGames);
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({ fields: {} });
+  const [awayScoreDraft, setAwayScoreDraft] = useState(() => scoreDraftFromGame(normalizeGameForForm(initialGame, mode), "AWAY"));
+  const [homeScoreDraft, setHomeScoreDraft] = useState(() => scoreDraftFromGame(normalizeGameForForm(initialGame, mode), "HOME"));
+  const [simpleScoreMode, setSimpleScoreMode] = useState<SimpleScoreMode>(() => inferSimpleScoreMode(normalizeGameForForm(initialGame, mode)));
+  const [showAllSteps, setShowAllSteps] = useState(false);
   const [addNewTeamsToMaster, setAddNewTeamsToMaster] = useState(false);
   const [addNewPlayersToMaster, setAddNewPlayersToMaster] = useState(false);
   const [savedLabel, setSavedLabel] = useState(dbEnabled ? "DB未保存" : "未保存");
@@ -240,7 +399,10 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
   const currentLineupPlayers = game.players.filter((player) => player.teamSide === currentLineupSide);
   const currentStarters = currentLineupPlayers.filter((player) => player.role !== "BENCH");
   const currentBench = currentLineupPlayers.filter((player) => player.role === "BENCH");
-  const currentPlayerOptions = players.filter((player) => !currentLineupTeamId || player.teamId === currentLineupTeamId);
+  const currentPlayerOptions = currentLineupTeamId ? players.filter((player) => player.teamId === currentLineupTeamId) : [];
+  const homePlayerOptions = game.homeTeamId ? players.filter((player) => player.teamId === game.homeTeamId) : [];
+  const awayPlayerOptions = game.awayTeamId ? players.filter((player) => player.teamId === game.awayTeamId) : [];
+  const bothTeamPlayerOptions = [...awayPlayerOptions.map((player) => ({ ...player, helper: `${game.awayTeamName || "ビジター"} ${player.helper ?? ""}`.trim() })), ...homePlayerOptions.map((player) => ({ ...player, helper: `${game.homeTeamName || "ホーム"} ${player.helper ?? ""}`.trim() }))];
   const detailsRows = [
     ["試合日", game.gameDate || "-"],
     ["球場", game.venue || "-"],
@@ -270,6 +432,7 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
       ["details", "試合情報"],
       ["result", "試合結果"],
     ];
+  const currentStepIndex = Math.max(0, flowSteps.findIndex(([step]) => step === formStep));
   const lineupWarnings = [
     game.players.filter((player) => player.teamSide === "AWAY" && player.role !== "BENCH" && player.name).length < 9 ? "ビジターのスタメンが9人未満です。" : "",
     game.players.filter((player) => player.teamSide === "HOME" && player.role !== "BENCH" && player.name).length < 9 ? "ホームのスタメンが9人未満です。" : "",
@@ -295,19 +458,35 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
 
   useEffect(() => {
     if (initialGame) {
-      setGame(initialGame);
+      const normalized = normalizeGameForForm(initialGame, mode);
+      setGame(normalized);
       setPersistedGameId(editId ?? initialGame.id);
-      setFormStep(initialFormStepFor(initialGame, mode));
+      setFormStep(initialFormStepFor(normalized, mode));
+      setAwayScoreDraft(scoreDraftFromGame(normalized, "AWAY"));
+      setHomeScoreDraft(scoreDraftFromGame(normalized, "HOME"));
+      setSimpleScoreMode(inferSimpleScoreMode(normalized));
       return;
     }
     if (!editId) return;
     const existing = loadGame(editId);
     if (existing) {
-      setGame(existing);
+      const normalized = normalizeGameForForm(existing, mode);
+      setGame(normalized);
       setPersistedGameId(existing.id);
-      setFormStep(initialFormStepFor(existing, mode));
+      setFormStep(initialFormStepFor(normalized, mode));
+      setAwayScoreDraft(scoreDraftFromGame(normalized, "AWAY"));
+      setHomeScoreDraft(scoreDraftFromGame(normalized, "HOME"));
+      setSimpleScoreMode(inferSimpleScoreMode(normalized));
     }
   }, [editId, initialGame, mode]);
+
+  useEffect(() => {
+    if (formStep !== "result") return;
+    setAwayScoreDraft(scoreDraftFromGame(game, "AWAY"));
+    setHomeScoreDraft(scoreDraftFromGame(game, "HOME"));
+    // Sync only when entering the result step or switching games; user score editing must not be overwritten by unrelated game state changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formStep, persistedGameId]);
 
   useEffect(() => {
     if (dbEnabled) return;
@@ -322,6 +501,18 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
   function patch(patchValue: Partial<ScoreBaseGame>) {
     setGame((current) => ({ ...current, ...patchValue, updatedAt: new Date().toISOString() }));
     setSavedLabel("編集中");
+    if (validationErrors.form || Object.keys(validationErrors.fields).length > 0) setValidationErrors({ fields: {} });
+  }
+
+  function showValidation(nextErrors: ValidationErrors) {
+    setValidationErrors(nextErrors);
+    const firstKey = Object.keys(nextErrors.fields)[0];
+    window.setTimeout(() => {
+      const target = firstKey ? document.querySelector(`[data-field="${firstKey}"]`) : document.querySelector("[data-validation-summary='true']");
+      target?.scrollIntoView({ block: "center", behavior: "smooth" });
+      if (target instanceof HTMLElement) target.focus();
+    }, 0);
+    return false;
   }
 
   function remember(next: ScoreBaseGame) {
@@ -375,7 +566,7 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
   function normalizedGame(source: ScoreBaseGame = game) {
     const workspace = dbEnabled && !editId ? loadWorkspaceContext() : null;
     return {
-      ...source,
+      ...normalizeGameForForm(source, mode),
       teamId: workspace?.type === "team" ? workspace.teamId : source.teamId,
       homeTeamName: source.homeTeamName || "ホーム",
       awayTeamName: source.awayTeamName || "ビジター",
@@ -384,46 +575,110 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
   }
 
   async function persistGame(redirectAfterSave: boolean, source: ScoreBaseGame = game) {
-    const homeTeamId = source.homeTeamId || (addNewTeamsToMaster && source.homeTeamName ? await createTeamFromName(source.homeTeamName) : "");
-    const awayTeamId = source.awayTeamId || (addNewTeamsToMaster && source.awayTeamName ? await createTeamFromName(source.awayTeamName) : "");
-    const normalized = { ...normalizedGame(source), homeTeamId, awayTeamId };
-    await createMissingPlayers(normalized);
-    if (dbEnabled) {
-      const formData = new FormData();
-      formData.set("payloadJson", JSON.stringify(normalized));
-      setError("");
-      const currentId = persistedGameId || editId;
-      const result = currentId ? await updateGameAction(currentId, formData) : await createGameAction(formData);
-      if (!result.ok) {
-        setError(result.error);
-        setSavedLabel("DB保存失敗");
-        return false;
+    setSavedLabel(dbEnabled ? "DB保存中" : "保存中");
+    try {
+      const homeTeamId = source.homeTeamId || (addNewTeamsToMaster && source.homeTeamName ? await createTeamFromName(source.homeTeamName) : "");
+      const awayTeamId = source.awayTeamId || (addNewTeamsToMaster && source.awayTeamName ? await createTeamFromName(source.awayTeamName) : "");
+      const normalized = { ...normalizedGame(source), homeTeamId, awayTeamId };
+      await createMissingPlayers(normalized);
+      if (dbEnabled) {
+        const formData = new FormData();
+        formData.set("payloadJson", JSON.stringify(normalized));
+        setError("");
+        const currentId = persistedGameId || editId;
+        const result = currentId ? await updateGameAction(currentId, formData) : await createGameAction(formData);
+        if (!result.ok) {
+          setError(result.error);
+          setSavedLabel("DB保存失敗");
+          return false;
+        }
+        const savedId = result.id ?? currentId ?? normalized.id;
+        setPersistedGameId(savedId);
+        setGame((current) => normalizeGameForForm({ ...current, id: savedId, homeTeamId, awayTeamId }, mode));
+        setGamesForCandidates((items) => [normalized, ...items.filter((item) => item.id !== normalized.id)]);
+        setSavedLabel("DB保存済み");
+        router.refresh();
+        if (redirectAfterSave) router.push(`/games/${savedId}`);
+        return true;
       }
-      const savedId = result.id ?? currentId ?? normalized.id;
-      setPersistedGameId(savedId);
-      setSavedLabel("DB保存済み");
-      router.refresh();
-      if (redirectAfterSave) router.push(`/games/${savedId}`);
+      upsertGame(normalized);
+      setGamesForCandidates((items) => [normalized, ...items.filter((item) => item.id !== normalized.id)]);
+      setSavedLabel("保存済み");
+      if (redirectAfterSave) router.push(`/games/${normalized.id}`);
       return true;
+    } catch {
+      setError("保存中に予期しないエラーが発生しました。入力内容を確認して再試行してください。");
+      setSavedLabel(dbEnabled ? "DB保存失敗" : "保存失敗");
+      return false;
     }
-    upsertGame(normalized);
-    setSavedLabel("保存済み");
-    if (redirectAfterSave) router.push(`/games/${normalized.id}`);
-    return true;
+  }
+
+  function resultSourceGame() {
+    return game.mode === "SIMPLE" && simpleScoreMode === "BOARD" ? game : gameWithTotalScore(game, awayScoreDraft, homeScoreDraft);
+  }
+
+  function resultDraftsForValidation() {
+    if (game.mode === "SCOREBOOK" || (game.mode === "SIMPLE" && simpleScoreMode === "BOARD")) {
+      return { away: String(awayRuns), home: String(homeRuns) };
+    }
+    return { away: awayScoreDraft, home: homeScoreDraft };
+  }
+
+  function validateCurrentStep() {
+    if (formStep === "details" || formStep === "detailsConfirm") return validateGameDetails(game);
+    if (formStep === "lineupHome") return validateLineup(game, "HOME");
+    if (formStep === "lineupAway") return validateLineup(game, "AWAY");
+    if (formStep === "lineupConfirm" || formStep === "readyToStart") return validateLineupConfirmation(game);
+    if (formStep === "result") {
+      const drafts = resultDraftsForValidation();
+      return validateGameResult(game, drafts.away, drafts.home);
+    }
+    return { fields: {} };
+  }
+
+  async function saveInfoOnly() {
+    const nextErrors = validateGameDetails(game);
+    if (Object.keys(nextErrors.fields).length) return showValidation(nextErrors);
+    setValidationErrors({ fields: {} });
+    return persistGame(false);
   }
 
   async function submit() {
-    startTransition(async () => {
-      await persistGame(true);
-    });
+    const source = formStep === "result" ? resultSourceGame() : game;
+    const drafts = resultDraftsForValidation();
+    const nextErrors = formStep === "result" ? validateGameResult(source, drafts.away, drafts.home) : validateCurrentStep();
+    if (Object.keys(nextErrors.fields).length) {
+      showValidation(nextErrors);
+      return;
+    }
+    setValidationErrors({ fields: {} });
+    await persistGame(true, source);
   }
 
   async function saveAndGo(nextStep: FormStep) {
+    const nextErrors = validateGameDetails(game);
+    if (Object.keys(nextErrors.fields).length) return showValidation(nextErrors);
+    setValidationErrors({ fields: {} });
+    const ok = await persistGame(false);
+    if (ok) setFormStep(nextStep);
+  }
+
+  async function saveLineupAndGo(nextStep: FormStep) {
+    if (nextStep === "readyToStart") {
+      const nextErrors = validateLineupConfirmation(game);
+      if (Object.keys(nextErrors.fields).length) return showValidation(nextErrors);
+    }
+    setValidationErrors({ fields: {} });
     const ok = await persistGame(false);
     if (ok) setFormStep(nextStep);
   }
 
   async function startGame() {
+    const nextErrors = validateLineupConfirmation(game);
+    if (Object.keys(nextErrors.fields).length) {
+      showValidation(nextErrors);
+      return;
+    }
     const now = game.startTime || new Date().toTimeString().slice(0, 5);
     const next = { ...game, startTime: now, statusReason: [game.statusReason, "v0.7.5: lineup confirmed"].filter(Boolean).join("\n"), updatedAt: new Date().toISOString() };
     const previous = game;
@@ -440,11 +695,27 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
     patch({ inningScores: [...game.inningScores, { inning: game.inningScores.length + 1, top: "", bottom: "" }] });
   }
 
-  function setTotalScore(side: "HOME" | "AWAY", value: string) {
-    const score = value === "" ? "" : Number(value);
-    patch({
-      inningScores: game.inningScores.map((inning, index) => index === 0 ? { ...inning, [side === "HOME" ? "bottom" : "top"]: score } : { ...inning, [side === "HOME" ? "bottom" : "top"]: index === 0 ? score : 0 }),
-    });
+  function setScoreDraft(side: "AWAY" | "HOME", value: string) {
+    const next = sanitizeScoreDraft(value);
+    if (side === "AWAY") setAwayScoreDraft(next);
+    else setHomeScoreDraft(next);
+    if (validationErrors.fields.score) setValidationErrors({ fields: {} });
+  }
+
+  function normalizeScoreDraftOnBlur(side: "AWAY" | "HOME") {
+    if (side === "AWAY" && awayScoreDraft === "") setAwayScoreDraft("0");
+    if (side === "HOME" && homeScoreDraft === "") setHomeScoreDraft("0");
+  }
+
+  function selectPlayerValue(optionId: string, patchKey: "pitcherAway" | "pitcherHome" | "winningPitcher" | "losingPitcher" | "savePitcher" | "homerunMemo") {
+    const option = players.find((player) => player.id === optionId);
+    if (!option) return;
+    if (patchKey === "homerunMemo") {
+      const teamName = option.teamId === game.homeTeamId ? game.homeTeamName || "ホーム" : option.teamId === game.awayTeamId ? game.awayTeamName || "ビジター" : "不明";
+      patch({ homerunMemo: [game.homerunMemo, `${teamName}: ${option.label}`].filter(Boolean).join("\n") });
+      return;
+    }
+    patch({ [patchKey]: option.label });
   }
 
   function setCount(type: "balls" | "strikes" | "outsBefore", value: number) {
@@ -541,10 +812,13 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
   }
 
   function confirmPlateAppearance() {
-    if (!paDraft.result) {
+    const nextErrors = validatePlateAppearance(paDraft);
+    if (Object.keys(nextErrors.fields).length) {
+      setValidationErrors(nextErrors);
       setLastRunnerMessage("打席結果を選択してから確定してください。");
       return;
     }
+    setValidationErrors({ fields: {} });
     const pa: PlateAppearance = {
       id: uid("pa"),
       ...paDraft,
@@ -619,15 +893,15 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
 
   return (
     <div className="space-y-5">
-      <div className="sticky top-16 z-20 -mx-4 border-b border-stone-200 bg-stone-50/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-md sm:border">
+      <div className={`${formStep === "liveInput" ? "" : "sticky top-16 z-20"} -mx-4 border-b border-stone-200 bg-stone-50/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-md sm:border`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-bold text-emerald-700">{modeLabels[game.mode]}</p>
-            <p className="text-sm font-bold text-stone-700">保存状態: {savedLabel} / {dbEnabled ? "DB保存" : "ローカル保存"}</p>
-            <p className="mt-1 text-xs font-black text-stone-500">現在位置: {workflowLabel}</p>
+            <p className="text-sm font-bold text-stone-700">保存状態: {isPending ? "保存中..." : savedLabel} / {dbEnabled ? "DB保存" : "ローカル保存"}</p>
+            <p className="mt-1 text-xs font-black text-stone-500">{formStep === "liveInput" ? "試合入力中" : `現在位置: ${workflowLabel}`}</p>
           </div>
           <div className="flex gap-2">
-            {game.mode === "SCOREBOOK" ? (
+            {game.mode === "SCOREBOOK" && formStep === "liveInput" ? (
               <button type="button" onClick={undo} className={`${btn} bg-white text-stone-700 ring-1 ring-stone-300`} title="1つ戻す">
                 <ArrowLeft className="h-4 w-4" /> 戻す
               </button>
@@ -637,47 +911,61 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
                 試合結果へ
               </button>
             ) : null}
-            <button type="button" disabled={isPending} onClick={submit} className={`${btn} bg-emerald-700 text-white disabled:opacity-50`}>
+            <button type="button" disabled={isPending} onClick={() => startTransition(async () => { await submit(); })} className={`${btn} bg-emerald-700 text-white disabled:opacity-50`}>
               <Save className="h-4 w-4" /> 保存
             </button>
           </div>
         </div>
         {error ? <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p> : null}
+        <div data-validation-summary="true" tabIndex={-1} className="mt-3">{validationSummary(validationErrors)}</div>
       </div>
 
-      <section className="rounded-md border border-stone-200 bg-white p-3 shadow-sm">
-        <div className="grid grid-cols-2 gap-2 text-xs font-black sm:grid-cols-4 lg:grid-cols-8">
-          {flowSteps.map(([step, text], index) => (
-            <button
-              key={step}
-              type="button"
-              onClick={() => setFormStep(step)}
-              disabled={gameStarted && (step === "lineupHome" || step === "lineupAway" || step === "lineupConfirm" || step === "readyToStart")}
-              className={`min-h-11 rounded-md px-2 ${formStep === step ? "bg-emerald-700 text-white" : "bg-stone-100 text-stone-700 disabled:opacity-40"}`}
-            >
-              {index + 1}. {text}
-            </button>
-          ))}
+      {formStep !== "liveInput" ? <section className="rounded-md border border-stone-200 bg-white p-3 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-black text-stone-500">{currentStepIndex + 1} / {flowSteps.length}</p>
+            <p className="truncate text-sm font-black text-stone-950">{flowSteps[currentStepIndex]?.[1] ?? "試合情報"}</p>
+          </div>
+          <button type="button" className="rounded-md bg-stone-100 px-3 py-2 text-xs font-black text-stone-700" onClick={() => setShowAllSteps((value) => !value)}>{showAllSteps ? "工程を閉じる" : "工程を表示"}</button>
         </div>
-      </section>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-stone-100">
+          <div className="h-full rounded-full bg-emerald-700 transition-all" style={{ width: `${((currentStepIndex + 1) / flowSteps.length) * 100}%` }} />
+        </div>
+        {showAllSteps ? <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-black sm:grid-cols-4 lg:grid-cols-8">
+          {flowSteps.map(([step, text], index) => {
+            const locked = gameStarted && (step === "lineupHome" || step === "lineupAway" || step === "lineupConfirm" || step === "readyToStart");
+            return (
+              <button
+                key={step}
+                type="button"
+                onClick={() => setFormStep(step)}
+                disabled={locked}
+                className={`min-h-10 rounded-md px-2 ${formStep === step ? "bg-emerald-700 text-white" : "bg-stone-100 text-stone-700 disabled:opacity-40"}`}
+              >
+                {index + 1}. {text}
+              </button>
+            );
+          })}
+        </div> : null}
+      </section> : null}
 
       {formStep === "details" ? <section className="grid gap-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-2">
         <div className="sm:col-span-2">
           <h2 className="text-lg font-black text-stone-950">試合情報登録</h2>
           <p className="mt-1 text-sm font-bold text-stone-600">まず試合情報だけを保存します。保存後、観戦記録一覧から続きの入力を再開できます。</p>
         </div>
-        <label className={label}>試合日<input className={field} type="date" value={game.gameDate} onChange={(e) => patch({ gameDate: e.target.value })} /></label>
-        <SelectOrCreateInput label="球場" options={venueOptions} value={optionValue(game.venue, venueOptions)} onChange={(value) => patch({ venue: value.label })} placeholder="例: 甲子園球場" />
-        <SelectOrCreateInput label="大会・リーグ" options={competitionOptions} value={optionValue(game.competition, competitionOptions)} onChange={(value) => patch({ competition: value.label })} placeholder="例: 春季リーグ" />
-        <SelectOrCreateInput label="天気" options={weatherOptions} value={optionValue(game.weather, weatherOptions)} onChange={(value) => patch({ weather: value.label })} />
-        <SelectOrCreateInput label="ホームチーム" required options={teamOptions} value={teamValue(game.homeTeamId, game.homeTeamName, teamOptions)} onChange={(value) => patch({ homeTeamId: value.mode === "existing" ? value.id : "", homeTeamName: value.label })} placeholder="ホームチーム名" />
-        <SelectOrCreateInput label="ビジターチーム" required options={teamOptions} value={teamValue(game.awayTeamId, game.awayTeamName, teamOptions)} onChange={(value) => patch({ awayTeamId: value.mode === "existing" ? value.id : "", awayTeamName: value.label })} placeholder="ビジターチーム名" />
-        <SelectOrCreateInput label="応援チーム" allowNone noneLabel="応援チームなし" options={[{ id: "home", label: game.homeTeamName ? "ホームを応援" : "ホームを応援" }, { id: "away", label: game.awayTeamName ? "ビジターを応援" : "ビジターを応援" }, ...teamOptions]} value={optionValue(game.favoriteTeamName, teamOptions, true)} onChange={(value) => patch({ favoriteTeamName: value.mode === "none" ? "" : value.id === "home" ? (game.homeTeamName || "ホーム") : value.id === "away" ? (game.awayTeamName || "ビジター") : value.label })} placeholder="その他の応援チーム" />
-        <label className="flex items-center gap-3 text-sm font-bold text-stone-700"><input type="checkbox" checked={game.isPublic} onChange={(e) => patch({ isPublic: e.target.checked })} /> 公開フラグ</label>
-        <label className="flex items-center gap-3 text-sm font-bold text-stone-700"><input type="checkbox" checked={addNewTeamsToMaster} onChange={(e) => setAddNewTeamsToMaster(e.target.checked)} /> 新規入力チームをチームマスタにも追加</label>
-        <div className="sticky bottom-0 -mx-4 flex flex-wrap justify-between gap-2 border-t border-stone-200 bg-white/95 px-4 py-3 backdrop-blur sm:static sm:col-span-2 sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
-          <button type="button" disabled={isPending} className={`${btn} bg-stone-100 text-stone-800 disabled:opacity-50`} onClick={() => startTransition(async () => { await persistGame(false); })}>試合情報だけ保存</button>
-          <button type="button" disabled={isPending} className={`${btn} bg-emerald-700 text-white disabled:opacity-50`} onClick={() => startTransition(async () => saveAndGo(game.mode === "SCOREBOOK" ? "detailsConfirm" : "result"))}>{game.mode === "SCOREBOOK" ? "保存して確認へ" : "保存して試合結果へ"}</button>
+        <label data-field="gameDate" tabIndex={-1} className={label}>{fieldLabel("試合日", true)}<input className={`${field} ${validationErrors.fields.gameDate ? "border-red-400 bg-red-50" : ""}`} aria-invalid={Boolean(validationErrors.fields.gameDate)} aria-describedby="gameDate-error" type="date" value={game.gameDate} onChange={(e) => patch({ gameDate: e.target.value })} />{fieldError(validationErrors, "gameDate")}</label>
+        <div data-field="venue" tabIndex={-1}><SelectOrCreateInput label="球場" optional options={venueOptions} value={optionValue(game.venue, venueOptions)} onChange={(value) => patch({ venue: value.label })} placeholder="例: 甲子園球場" /></div>
+        <div data-field="competition" tabIndex={-1}><SelectOrCreateInput label="大会・リーグ" optional options={competitionOptions} value={optionValue(game.competition, competitionOptions)} onChange={(value) => patch({ competition: value.label })} placeholder="例: 春季リーグ" /></div>
+        <div data-field="weather" tabIndex={-1}><SelectOrCreateInput label="天気" optional allowNone noneLabel="未選択" allowCreate={false} options={weatherOptions} value={optionValue(game.weather, weatherOptions, true)} onChange={(value) => patch({ weather: value.mode === "none" ? "" : value.label })} /></div>
+        <div data-field="homeTeamName" tabIndex={-1}><SelectOrCreateInput label="ホームチーム" required options={teamOptions} value={teamValue(game.homeTeamId, game.homeTeamName, teamOptions)} error={validationErrors.fields.homeTeamName} onChange={(value) => patch({ homeTeamId: value.mode === "existing" ? value.id : "", homeTeamName: value.label })} placeholder="ホームチーム名" /></div>
+        <div data-field="awayTeamName" tabIndex={-1}><SelectOrCreateInput label="ビジターチーム" required options={teamOptions} value={teamValue(game.awayTeamId, game.awayTeamName, teamOptions)} error={validationErrors.fields.awayTeamName} onChange={(value) => patch({ awayTeamId: value.mode === "existing" ? value.id : "", awayTeamName: value.label })} placeholder="ビジターチーム名" /></div>
+        <div data-field="favoriteTeamName" tabIndex={-1}><SelectOrCreateInput label="応援チーム" optional allowNone noneLabel="応援チームなし" options={[{ id: "home", label: "ホームを応援" }, { id: "away", label: "ビジターを応援" }, ...teamOptions]} value={optionValue(game.favoriteTeamName, teamOptions, true)} onChange={(value) => patch({ favoriteTeamName: value.mode === "none" ? "" : value.id === "home" ? (game.homeTeamName || "ホーム") : value.id === "away" ? (game.awayTeamName || "ビジター") : value.label })} placeholder="その他の応援チーム" /></div>
+        <label className="flex items-center gap-3 text-sm font-bold text-stone-700"><input type="checkbox" checked={game.isPublic} onChange={(e) => patch({ isPublic: e.target.checked })} /> 公開フラグ {requiredBadge(false)}</label>
+        <label className="flex items-center gap-3 text-sm font-bold text-stone-700"><input type="checkbox" checked={addNewTeamsToMaster} onChange={(e) => setAddNewTeamsToMaster(e.target.checked)} /> 新規入力チームをチームマスタにも追加 {requiredBadge(false)}</label>
+        <div className="sticky bottom-16 -mx-4 flex flex-wrap justify-between gap-2 border-t border-stone-200 bg-white/95 px-4 py-3 backdrop-blur sm:static sm:col-span-2 sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+          <button type="button" disabled={isPending} className={`${btn} bg-stone-100 text-stone-800 disabled:opacity-50`} onClick={() => startTransition(async () => { await saveInfoOnly(); })}>試合情報だけ保存</button>
+          <button type="button" disabled={isPending} className={`${btn} bg-emerald-700 text-white disabled:opacity-50`} onClick={() => startTransition(async () => { await saveAndGo(game.mode === "SCOREBOOK" ? "detailsConfirm" : "result"); })}>{game.mode === "SCOREBOOK" ? "保存して確認へ" : "保存して試合結果へ"}</button>
         </div>
       </section> : null}
 
@@ -698,9 +986,9 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
             <dd className="mt-1 whitespace-pre-wrap font-bold text-stone-950">{game.watchMemo || game.seatMemo || game.photoMemo || "-"}</dd>
           </div>
         </dl>
-        <div className="sticky bottom-0 -mx-4 flex flex-wrap justify-between gap-2 border-t border-stone-200 bg-white/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+        <div className="sticky bottom-16 -mx-4 flex flex-wrap justify-between gap-2 border-t border-stone-200 bg-white/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
           <button type="button" className={`${btn} bg-stone-100 text-stone-800`} onClick={() => setFormStep("details")}>戻って修正</button>
-          <button type="button" disabled={isPending} className={`${btn} bg-emerald-700 text-white disabled:opacity-50`} onClick={() => startTransition(async () => saveAndGo("lineupHome"))}>この内容でホームスタメンへ進む</button>
+          <button type="button" disabled={isPending} className={`${btn} bg-emerald-700 text-white disabled:opacity-50`} onClick={() => startTransition(async () => { await saveAndGo("lineupHome"); })}>この内容でホームスタメンへ進む</button>
         </div>
       </section> : null}
 
@@ -719,15 +1007,15 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
             </div>
             <label className="flex items-center gap-3 text-sm font-bold text-stone-700"><input type="checkbox" checked={addNewPlayersToMaster} onChange={(e) => setAddNewPlayersToMaster(e.target.checked)} /> 新規入力選手を選手マスタにも追加</label>
 
-            <div className="relative mx-auto aspect-[4/3] w-full max-w-md overflow-hidden rounded-md border border-emerald-200 bg-emerald-900 p-3 shadow-inner">
+            <div className="relative mx-auto aspect-[4/3] min-h-[240px] w-full max-w-md overflow-hidden rounded-md border border-emerald-200 bg-emerald-900 p-3 shadow-inner">
               <div className="absolute inset-x-[10%] bottom-[8%] top-[18%] rotate-45 rounded-md border-2 border-lime-200/70" />
               <div className="absolute left-1/2 top-[82%] h-10 w-10 -translate-x-1/2 rotate-45 rounded-sm bg-stone-100" />
               {fieldPositions.map((position) => {
                 const assigned = currentStarters.find((player) => player.position === position.value);
                 return (
-                  <button key={position.value} type="button" onClick={() => assignPosition(currentLineupSide, position.value)} className={`absolute ${position.className} min-h-12 min-w-16 -translate-x-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-black shadow ${assigned ? "bg-white text-stone-950" : "bg-emerald-700 text-white ring-1 ring-lime-200/60"}`}>
+                  <button key={position.value} type="button" onClick={() => assignPosition(currentLineupSide, position.value)} className={`absolute ${position.className} min-h-11 w-[clamp(44px,15vw,64px)] -translate-x-1/2 -translate-y-1/2 rounded-md px-1 py-1 text-[11px] font-black shadow ${assigned ? "bg-white text-stone-950" : "bg-emerald-700 text-white ring-1 ring-lime-200/60"}`}>
                     <span className="block">{position.label}</span>
-                    <span className="block max-w-14 truncate">{assigned?.name || "未配置"}</span>
+                    <span className="block truncate">{assigned?.number ? `#${assigned.number}` : assigned?.name || "未配置"}</span>
                   </button>
                 );
               })}
@@ -776,7 +1064,7 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
 
             <div className="flex flex-wrap justify-between gap-2">
               <button type="button" className={`${btn} bg-stone-100 text-stone-800`} onClick={() => setFormStep("detailsConfirm")}>戻る</button>
-              {formStep === "lineupHome" ? <button type="button" className={`${btn} bg-emerald-700 text-white`} onClick={() => setFormStep("lineupAway")}>ビジター入力へ</button> : <button type="button" className={`${btn} bg-emerald-700 text-white`} onClick={() => setFormStep("lineupConfirm")}>スタメン最終確認へ</button>}
+              {formStep === "lineupHome" ? <button type="button" className={`${btn} bg-emerald-700 text-white`} onClick={() => startTransition(async () => { await saveLineupAndGo("lineupAway"); })}>ビジター入力へ</button> : <button type="button" className={`${btn} bg-emerald-700 text-white`} onClick={() => startTransition(async () => { await saveLineupAndGo("lineupConfirm"); })}>スタメン最終確認へ</button>}
             </div>
           </section>
 
@@ -812,9 +1100,9 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
           ))}
         </div>
         {newMasterPlayers.length && addNewPlayersToMaster ? <p className="rounded-md bg-sky-50 p-3 text-sm font-bold text-sky-900">新規登録予定: {newMasterPlayers.map((player) => player.name).join(" / ")}</p> : null}
-        <div className="sticky bottom-0 -mx-4 flex flex-wrap justify-between gap-2 border-t border-stone-200 bg-white/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+        <div className="sticky bottom-16 -mx-4 flex flex-wrap justify-between gap-2 border-t border-stone-200 bg-white/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
           <button type="button" className={`${btn} bg-stone-100 text-stone-800`} onClick={() => setFormStep("lineupHome")}>戻って修正</button>
-          <button type="button" disabled={isPending} className={`${btn} bg-emerald-700 text-white disabled:opacity-50`} onClick={() => startTransition(async () => saveAndGo("readyToStart"))}>このスタメンで保存</button>
+          <button type="button" disabled={isPending} className={`${btn} bg-emerald-700 text-white disabled:opacity-50`} onClick={() => startTransition(async () => { await saveLineupAndGo("readyToStart"); })}>このスタメンで保存</button>
         </div>
       </section> : null}
 
@@ -825,7 +1113,7 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
           <p className="text-sm font-bold text-lime-200">{game.awayTeamName || "ビジター"} vs {game.homeTeamName || "ホーム"}</p>
           <p className="mt-1 text-2xl font-black">{game.gameDate} {game.startTime || "開始時刻未設定"}</p>
         </div>
-        <div className="sticky bottom-0 -mx-4 flex flex-wrap justify-between gap-2 border-t border-stone-200 bg-white/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+        <div className="sticky bottom-16 -mx-4 flex flex-wrap justify-between gap-2 border-t border-stone-200 bg-white/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
           <button type="button" className={`${btn} bg-stone-100 text-stone-800`} onClick={() => setFormStep("lineupConfirm")}>戻って確認</button>
           <button type="button" disabled={isPending} className={`${btn} bg-emerald-700 text-white disabled:opacity-50`} onClick={() => startTransition(startGame)}>試合開始</button>
         </div>
@@ -840,42 +1128,53 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
 
         <div className="rounded-md bg-stone-950 p-4 text-white">
           <p className="text-sm font-bold text-lime-200">{game.awayTeamName || "ビジター"} vs {game.homeTeamName || "ホーム"}</p>
+          {game.mode === "SIMPLE" ? <div className="mt-3 inline-flex w-full rounded-md bg-stone-800 p-1 text-xs font-black sm:w-auto">
+            <button type="button" onClick={() => {
+              setAwayScoreDraft(String(awayRuns));
+              setHomeScoreDraft(String(homeRuns));
+              setSimpleScoreMode("TOTAL");
+            }} className={`min-h-9 flex-1 rounded px-3 sm:flex-none ${simpleScoreMode === "TOTAL" ? "bg-lime-300 text-stone-950" : "text-stone-200"}`}>スコアのみ</button>
+            <button type="button" onClick={() => setSimpleScoreMode("BOARD")} className={`min-h-9 flex-1 rounded px-3 sm:flex-none ${simpleScoreMode === "BOARD" ? "bg-lime-300 text-stone-950" : "text-stone-200"}`}>スコアボード</button>
+          </div> : null}
           <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-end gap-3">
-            <label className="space-y-1 text-sm font-black">
-              <span className="block truncate">{game.awayTeamName || "ビジター"}</span>
-              <input className="min-h-14 w-full rounded-md border border-stone-600 bg-black px-3 text-center text-2xl font-black text-white" type="number" min={0} value={awayRuns} onChange={(e) => setTotalScore("AWAY", e.target.value)} />
+            <label data-field="score" tabIndex={-1} className="space-y-1 text-sm font-black">
+              <span className="block truncate">{game.awayTeamName || "ビジター"} {requiredBadge(true)}</span>
+              <input className={`min-h-14 w-full rounded-md border border-stone-600 bg-black px-3 text-center text-2xl font-black text-white ${validationErrors.fields.score ? "border-red-400" : ""}`} type="text" inputMode="numeric" pattern="[0-9]*" readOnly={game.mode === "SCOREBOOK" || (game.mode === "SIMPLE" && simpleScoreMode === "BOARD")} value={game.mode === "SCOREBOOK" || (game.mode === "SIMPLE" && simpleScoreMode === "BOARD") ? awayRuns : awayScoreDraft} onChange={(e) => setScoreDraft("AWAY", e.target.value)} onBlur={() => normalizeScoreDraftOnBlur("AWAY")} />
             </label>
             <span className="pb-4 text-xl font-black text-stone-300">-</span>
             <label className="space-y-1 text-sm font-black">
-              <span className="block truncate text-right">{game.homeTeamName || "ホーム"}</span>
-              <input className="min-h-14 w-full rounded-md border border-stone-600 bg-black px-3 text-center text-2xl font-black text-white" type="number" min={0} value={homeRuns} onChange={(e) => setTotalScore("HOME", e.target.value)} />
+              <span className="block truncate text-right">{game.homeTeamName || "ホーム"} {requiredBadge(true)}</span>
+              <input className={`min-h-14 w-full rounded-md border border-stone-600 bg-black px-3 text-center text-2xl font-black text-white ${validationErrors.fields.score ? "border-red-400" : ""}`} type="text" inputMode="numeric" pattern="[0-9]*" readOnly={game.mode === "SCOREBOOK" || (game.mode === "SIMPLE" && simpleScoreMode === "BOARD")} value={game.mode === "SCOREBOOK" || (game.mode === "SIMPLE" && simpleScoreMode === "BOARD") ? homeRuns : homeScoreDraft} onChange={(e) => setScoreDraft("HOME", e.target.value)} onBlur={() => normalizeScoreDraftOnBlur("HOME")} />
             </label>
           </div>
+          {fieldError(validationErrors, "score")}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className={label}>勝敗
+          <label className={label}>{fieldLabel("勝敗", false)}
             <select className={field} value={game.outcome ?? ""} onChange={(e) => patch({ outcome: e.target.value, result: e.target.value })}>
               <option value="">未確定</option>
+              <option value={homeRuns > awayRuns ? "ホーム勝ち" : awayRuns > homeRuns ? "ビジター勝ち" : "引き分け"}>スコアから自動判定: {homeRuns > awayRuns ? "ホーム勝ち" : awayRuns > homeRuns ? "ビジター勝ち" : "引き分け"}</option>
               <option value="ホーム勝ち">ホーム勝ち</option>
               <option value="ビジター勝ち">ビジター勝ち</option>
               <option value="引き分け">引き分け</option>
             </select>
           </label>
-          <label className={label}>試合状態
-            <select className={field} value={game.status} onChange={(e) => patch({ status: e.target.value as ScoreBaseGame["status"] })}>
+          <label data-field="status" tabIndex={-1} className={label}>{fieldLabel("試合状態", true)}
+            <select className={`${field} ${validationErrors.fields.status ? "border-red-400 bg-red-50" : ""}`} aria-invalid={Boolean(validationErrors.fields.status)} value={game.status} onChange={(e) => patch({ status: e.target.value as ScoreBaseGame["status"] })}>
               {Object.entries(statusLabels).map(([value, text]) => <option key={value} value={value}>{text}</option>)}
             </select>
+            {fieldError(validationErrors, "status")}
           </label>
-          <label className={label}>終了時刻<input className={field} type="time" value={game.endTime} onChange={(e) => patch({ endTime: e.target.value })} /></label>
-          <label className={label}>理由メモ<input className={field} value={game.statusReason} onChange={(e) => patch({ statusReason: e.target.value })} placeholder="雨天中止、日没コールドなど" /></label>
-          <label className={label}>印象に残った選手<input className={field} value={game.impressivePlayer} onChange={(e) => patch({ impressivePlayer: e.target.value })} /></label>
-          <label className={label}>MVP<input className={field} value={game.mvp} onChange={(e) => patch({ mvp: e.target.value })} /></label>
+          <label className={label}>{fieldLabel("終了時刻", false)}<input className={field} type="time" value={game.endTime} onChange={(e) => patch({ endTime: e.target.value })} /></label>
+          <label data-field="statusReason" tabIndex={-1} className={label}>{fieldLabel("理由メモ", ["CALLED_GAME", "SUSPENDED", "CANCELLED", "POSTPONED", "NO_GAME"].includes(game.status))}<input className={`${field} ${validationErrors.fields.statusReason ? "border-red-400 bg-red-50" : ""}`} value={game.statusReason} onChange={(e) => patch({ statusReason: e.target.value })} placeholder="雨天中止、日没コールドなど" />{fieldError(validationErrors, "statusReason")}</label>
+          <label className={label}>{fieldLabel("印象に残った選手", false)}<input className={field} value={game.impressivePlayer} onChange={(e) => patch({ impressivePlayer: e.target.value })} /></label>
+          <label className={label}>{fieldLabel("MVP", false)}<input className={field} value={game.mvp} onChange={(e) => patch({ mvp: e.target.value })} /></label>
         </div>
 
-        {game.mode !== "WATCH_ONLY" ? <section className="space-y-3 rounded-md border border-stone-200 p-3">
+        {game.mode !== "WATCH_ONLY" && (game.mode === "SCOREBOOK" || simpleScoreMode === "BOARD") ? <section className="space-y-3 rounded-md border border-stone-200 p-3">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-black text-stone-900">イニング別スコア・投手メモ</h3>
+            <h3 className="text-sm font-black text-stone-900">スコアボード</h3>
             <button type="button" className={`${btn} bg-stone-100 text-stone-700`} onClick={addInning}><Plus className="h-4 w-4" /> 延長追加</button>
           </div>
           <div className="overflow-x-auto">
@@ -895,22 +1194,26 @@ export function GameForm({ mode, editId, initialGame, dbEnabled = false, dbTeams
               </tbody>
             </table>
           </div>
+        </section> : null}
+
+        {game.mode !== "WATCH_ONLY" ? <section className="space-y-3 rounded-md border border-stone-200 p-3">
+          <h3 className="text-sm font-black text-stone-900">選手記録</h3>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className={label}>ビジター先発<input className={field} value={game.pitcherAway} onChange={(e) => patch({ pitcherAway: e.target.value })} /></label>
-            <label className={label}>ホーム先発<input className={field} value={game.pitcherHome} onChange={(e) => patch({ pitcherHome: e.target.value })} /></label>
-            <label className={label}>勝利投手<input className={field} value={game.winningPitcher} onChange={(e) => patch({ winningPitcher: e.target.value })} /></label>
-            <label className={label}>敗戦投手<input className={field} value={game.losingPitcher} onChange={(e) => patch({ losingPitcher: e.target.value })} /></label>
-            <label className={label}>セーブ<input className={field} value={game.savePitcher} onChange={(e) => patch({ savePitcher: e.target.value })} /></label>
-            <label className={label}>本塁打メモ<input className={field} value={game.homerunMemo} onChange={(e) => patch({ homerunMemo: e.target.value })} /></label>
-            <label className={`${label} sm:col-span-2`}>得点経過メモ<textarea className={`${field} min-h-20`} value={game.scoringMemo} onChange={(e) => patch({ scoringMemo: e.target.value })} /></label>
+            <label className={label}>{fieldLabel("ビジター先発投手", false)}<select className={field} value="" onChange={(e) => selectPlayerValue(e.target.value, "pitcherAway")}><option value="">{awayPlayerOptions.length ? "登録選手から選択" : "登録選手なし"}</option>{awayPlayerOptions.map((player) => <option key={player.id} value={player.id}>{player.label}{player.helper ? ` / ${player.helper}` : ""}</option>)}</select><input className={field} value={game.pitcherAway} onChange={(e) => patch({ pitcherAway: e.target.value })} placeholder="未登録選手を入力" /></label>
+            <label className={label}>{fieldLabel("ホーム先発投手", false)}<select className={field} value="" onChange={(e) => selectPlayerValue(e.target.value, "pitcherHome")}><option value="">{homePlayerOptions.length ? "登録選手から選択" : "登録選手なし"}</option>{homePlayerOptions.map((player) => <option key={player.id} value={player.id}>{player.label}{player.helper ? ` / ${player.helper}` : ""}</option>)}</select><input className={field} value={game.pitcherHome} onChange={(e) => patch({ pitcherHome: e.target.value })} placeholder="未登録選手を入力" /></label>
+            <label className={label}>{fieldLabel("勝利投手", false)}<select className={field} value="" onChange={(e) => selectPlayerValue(e.target.value, "winningPitcher")}><option value="">{bothTeamPlayerOptions.length ? "登録選手から選択" : "登録選手なし"}</option>{bothTeamPlayerOptions.map((player) => <option key={`win-${player.id}`} value={player.id}>{player.label}{player.helper ? ` / ${player.helper}` : ""}</option>)}</select><input className={field} value={game.winningPitcher} onChange={(e) => patch({ winningPitcher: e.target.value })} placeholder="未登録選手を入力" /></label>
+            <label className={label}>{fieldLabel("敗戦投手", false)}<select className={field} value="" onChange={(e) => selectPlayerValue(e.target.value, "losingPitcher")}><option value="">{bothTeamPlayerOptions.length ? "登録選手から選択" : "登録選手なし"}</option>{bothTeamPlayerOptions.map((player) => <option key={`lose-${player.id}`} value={player.id}>{player.label}{player.helper ? ` / ${player.helper}` : ""}</option>)}</select><input className={field} value={game.losingPitcher} onChange={(e) => patch({ losingPitcher: e.target.value })} placeholder="未登録選手を入力" /></label>
+            <label className={label}>{fieldLabel("セーブ投手", false)}<select className={field} value="" onChange={(e) => selectPlayerValue(e.target.value, "savePitcher")}><option value="">{bothTeamPlayerOptions.length ? "登録選手から選択" : "登録選手なし"}</option>{bothTeamPlayerOptions.map((player) => <option key={`save-${player.id}`} value={player.id}>{player.label}{player.helper ? ` / ${player.helper}` : ""}</option>)}</select><input className={field} value={game.savePitcher} onChange={(e) => patch({ savePitcher: e.target.value })} placeholder="未登録選手を入力" /></label>
+            <label className={label}>{fieldLabel("本塁打者", false)}<select className={field} value="" onChange={(e) => selectPlayerValue(e.target.value, "homerunMemo")}><option value="">{bothTeamPlayerOptions.length ? "本塁打者を追加" : "登録選手なし"}</option>{bothTeamPlayerOptions.map((player) => <option key={`hr-${player.id}`} value={player.id}>{player.label}{player.helper ? ` / ${player.helper}` : ""}</option>)}</select><textarea className={`${field} min-h-20`} value={game.homerunMemo} onChange={(e) => patch({ homerunMemo: e.target.value })} placeholder="未登録選手や複数本を入力" /></label>
+            <label className={`${label} sm:col-span-2`}>{fieldLabel("得点経過メモ", false)}<textarea className={`${field} min-h-20`} value={game.scoringMemo} onChange={(e) => patch({ scoringMemo: e.target.value })} /></label>
           </div>
         </section> : null}
 
-        <label className={label}>任意メモ<textarea className={`${field} min-h-24`} value={game.watchMemo} onChange={(e) => patch({ watchMemo: e.target.value })} /></label>
+        <label className={label}>{fieldLabel("任意メモ", false)}<textarea className={`${field} min-h-24`} value={game.watchMemo} onChange={(e) => patch({ watchMemo: e.target.value })} /></label>
 
-        <div className="sticky bottom-0 -mx-4 flex flex-wrap justify-between gap-2 border-t border-stone-200 bg-white/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+        <div className="sticky bottom-16 -mx-4 flex flex-wrap justify-between gap-2 border-t border-stone-200 bg-white/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
           <button type="button" className={`${btn} bg-stone-100 text-stone-800`} onClick={() => setFormStep(game.mode === "SCOREBOOK" ? "liveInput" : "details")}>戻る</button>
-          <button type="button" disabled={isPending} className={`${btn} bg-emerald-700 text-white disabled:opacity-50`} onClick={submit}>結果を保存して完了</button>
+          <button type="button" disabled={isPending} className={`${btn} bg-emerald-700 text-white disabled:opacity-50`} onClick={() => startTransition(async () => { await submit(); })}>結果を保存して完了</button>
         </div>
       </section> : null}
 
